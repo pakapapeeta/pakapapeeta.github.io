@@ -1028,18 +1028,21 @@ html {
 }
 .research-figure {
     margin-top: 2rem;
-    text-align: center;
+    width: 100%;
+    max-width: 400px; /* prevents it from being too wide */
 }
 
 .research-figure img {
     width: 100%;
-    max-width: 500px;
     height: auto;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: block;
+    margin: 0 auto; /* center it inside its container */
 }
 
 .figure-caption {
+    text-align: center;
     font-size: 0.9rem;
     color: #666;
     margin-top: 0.5rem;
