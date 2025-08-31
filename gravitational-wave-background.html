@@ -8,7 +8,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- ✅ MathJax for LaTeX rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 </head>
+
 <body>
     <!-- Header -->
     <header id="header">
@@ -52,8 +66,8 @@
                 <div class="key-objectives">
                     <h3>Research Focus Areas</h3>
                     <ul>
-                        <li><strong>Reheating Equation of State:</strong> Mean value of \( w_{re} = 0.36 \pm 0.2 \), indicating a near-instantaneous transition to radiation domination</li>
-                        <li><strong>Spectral Index Sensitivity:</strong> Correlation between \( w_{re} \) and inferred tensor spectral index \( n_t \)</li>
+                        <li><strong>Reheating Equation of State:</strong> Mean value of $ w_{re} = 0.36 \pm 0.2$, indicating a near-instantaneous transition to radiation domination</li>
+                        <li><strong>Spectral Index Sensitivity:</strong> Correlation between $w_{re}$ and inferred tensor spectral index $n_t$</li>
                         <li><strong>Primordial GW vs. Astrophysical Background:</strong> Evaluated scenarios for reconciling NANOGrav signal with LIGO bounds</li>
                         <li><strong>Sourced Bounce Models:</strong> Considered blue-tilted GW spectra consistent with bounce cosmologies</li>
                     </ul>
@@ -65,15 +79,15 @@
 
                 <div class="impact-stats">
                     <div class="stat-card">
-                        <div class="stat-number">\( w_{re} = 0.36 \pm 0.2 \)</div>
+                        <div class="stat-number">$ w_{re} = 0.36 \pm 0.2$</div>
                         <div class="stat-label">Reheating EoS</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-number">\( n_t = 1.94^{+0.43}_{-0.86} \)</div>
+                        <div class="stat-number">$n_t = 1.94^{+0.43}_{-0.86}$</div>
                         <div class="stat-label">Tensor Spectral Index</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-number">\( T_{re} \leq 10^5 \, \text{GeV} \)</div>
+                        <div class="stat-number">$T_{re} \leq 10^5 \, \text{GeV} $</div>
                         <div class="stat-label">Reheating Temperature</div>
                     </div>
                 </div>
