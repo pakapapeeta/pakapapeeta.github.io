@@ -1028,6 +1028,7 @@ html {
 }
 .research-figure {
     margin-top: 2rem;
+    text-align: center;
     width: 100%;
     max-width: 600px; /* prevents it from being too wide */
 }
