@@ -1,20 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Matter & Quantum Cosmology Research | Amresh Kumar Singh</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>CMB Lensing & Non-Cold Dark Matter Research | Amresh Verma</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- MathJax for LaTeX rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 </head>
+
 <body>
     <!-- Header -->
     <header id="header">
         <nav class="nav-container">
             <div class="nav-brand">
-                <a href="index.html">Amresh Kumar Singh</a>
+                <a href="index.html">Amresh Verma</a>
             </div>
             <div class="nav-links">
                 <a href="index.html">Home</a>
@@ -30,222 +44,191 @@
         <div class="container">
             <div class="research-header">
                 <div class="breadcrumb">
-                    <a href="index.html">Home</a> / <span>Dark Matter & Quantum Cosmology</span>
+                    <a href="index.html">Home</a> / <span>CMB Lensing & Dark Matter</span>
                 </div>
-                <div class="research-icon">🔭</div>
-                <h1>Dark Matter & Quantum Cosmology Research</h1>
-                <p class="research-subtitle">Probing the fundamental nature of dark matter through quantum cosmological models and observational constraints</p>
+                <div class="research-icon" style="text-align: center;">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/WMAP_2012.png/500px-WMAP_2012.png" alt="CMB lensing illustration" style="width: 30%; height: auto;" />
+                </div>
+                <h1>CMB Lensing Anomaly & Non-Cold Dark Matter Constraints</h1>
+                <p class="research-subtitle">Two conclusions: (1) scale dependence and Planck low-$\ell$ driving of the CMB lensing anomaly; (2) DESI evidence for a non-cold dark matter equation of state.</p>
             </div>
         </div>
     </section>
 
-    <!-- Research Overview -->
+    <!-- Research Content: CMB Lensing -->
     <section class="research-content">
         <div class="container">
             <div class="content-grid">
-                <!-- Left Column: Research Summary -->
                 <div class="research-summary">
-                    <h2>Research Overview</h2>
-                    <p>My research investigates the intricate relationship between dark matter and quantum effects in the early universe. By combining cutting-edge observational data from surveys like DESI with theoretical frameworks from quantum gravity, I explore how quantum corrections influence dark matter properties and cosmic structure formation.</p>
-                    
-                    <div class="key-objectives">
-                        <h3>Key Research Objectives</h3>
-                        <ul>
-                            <li><strong>Non-Cold Dark Matter Models:</strong> Investigating warm and fuzzy dark matter scenarios that deviate from standard CDM predictions</li>
-                            <li><strong>Quantum Gravity Effects:</strong> Studying quantum corrections to cosmological evolution and their observational signatures</li>
-                            <li><strong>Structure Formation:</strong> Analyzing how alternative dark matter models affect galaxy formation and large-scale structure</li>
-                            <li><strong>Observational Constraints:</strong> Using DESI, Planck, and other survey data to constrain theoretical models</li>
-                        </ul>
+                    <h2 class="section-ttl">CMB Lensing Anomaly: Scale Dependence & Low-$\ell$ Origin</h2>
+
+                    <p>
+                        We scrutinize the reported lensing anomaly of the CMB by considering several phenomenological modifications of the lensing consistency parameter, $A_{\rm L}$. Using Planck power spectra alone we find statistically significant evidence for a scale-dependent (``running'') lensing amplitude. Parametrizing the deviation as an expansion of the form $A_L(\ell)=A_{\rm L}+B_{\rm L}\log(\ell/\ell_0)$, CMB-only fits show preference for $B_{\rm L}\neq 0$.
+                    </p>
+
+                    <p>
+                        Crucially, we demonstrate that the anomaly is entirely driven by Planck's lowest multipoles, $\ell \leq 30$. When these multipoles are excluded, a joint analysis including WMAP, ACT, SPT and low-redshift probes clearly favours $\Lambda$CDM over extended $\Lambda\text{CDM}+A_L(\ell)$ models. In that case the lensing anomaly and the low-$\ell$ anomaly both vanish, the $S_8$ tension is ameliorated, and the only remaining major discord is the Hubble tension.
+                    </p>
+
+                    <div class="research-figure">
+                        <img src="cmb-lensing-figure.png" alt="Planck low-ell driving lensing anomaly" />
+                        <p class="figure-caption">
+                            Figure: Evidence for scale dependence in $A_{\rm L}$ from Planck spectra (left). Removing $\ell\leq 30$ (right) restores consistency with $\Lambda$CDM and with complementary CMB probes.
+                        </p>
                     </div>
 
-                    <div class="methodology">
-                        <h3>Research Methodology</h3>
+                    <div class="key-objectives">
+                        <h3>Analysis highlights</h3>
                         <ul>
-                            <li><strong>Theoretical Modeling:</strong> Developing quantum field theory models for dark matter interactions</li>
-                            <li><strong>Numerical Simulations:</strong> Running N-body simulations with modified dark matter physics</li>
-                            <li><strong>Statistical Analysis:</strong> Bayesian parameter estimation and model comparison techniques</li>
-                            <li><strong>Multi-wavelength Data:</strong> Cross-correlating optical, X-ray, and gravitational lensing observations</li>
+                            <li><strong>Scale-dependent lensing:</strong> Moderate preference for $A_L+B_L\log(\ell/\ell_0)$ versus constant $A_{\rm L}$.</li>
+                            <li><strong>Low-$\ell$ driver:</strong> The lensing anomaly is traced to Planck multipoles $\ell\leq30$.</li>
+                            <li><strong>Delensing & BB searches:</strong> Robust lensing inference is critical for primordial BB searches and delensing strategies (see e.g. BICEP/Keck results).</li>
+                            <li><strong>Systematics vs new physics:</strong> A reliable $A_L\neq1$ could point to unaccounted systematics in Planck or to new physics; our results favour a data-driven reconsideration of the Planck low-$\ell$ modes.</li>
+                            <li><strong>Recommendation:</strong> Future cosmological inference should complement full-Planck fits with WMAP+ACT+SPT (and low-z probes) to test robustness against potential Planck low-$\ell$ systematics.</li>
                         </ul>
                     </div>
                 </div>
 
-                <!-- Right Column: Key Results -->
                 <div class="research-results">
-                    <h2>Research Findings</h2>
-                    
-                    <!-- Impact Statistics -->
+                    <h2>Key Findings</h2>
+
                     <div class="impact-stats">
                         <div class="stat-card">
-                            <div class="stat-number">2.1 keV</div>
-                            <div class="stat-label">Warm DM Mass Lower Limit (95% CL)</div>
+                            <div class="stat-number">Scale-dependent $A_{\rm L}$</div>
+                            <div class="stat-label">CMB-only preference</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-number">10⁻²² eV</div>
-                            <div class="stat-label">Fuzzy DM Mass Constraint</div>
+                            <div class="stat-number">Driver: $\ell \leq 30$</div>
+                            <div class="stat-label">Planck low multipoles</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-number">σ₈ = 0.81±0.02</div>
-                            <div class="stat-label">Matter Fluctuation Amplitude</div>
+                            <div class="stat-number">Residual tension: $H_0$</div>
+                            <div class="stat-label">Hubble tension remains</div>
                         </div>
                     </div>
 
-                    <!-- Recent Breakthrough -->
                     <div class="breakthrough-box">
-                        <h3>🎯 Recent Breakthrough</h3>
-                        <p><strong>DESI Survey Analysis:</strong> Our latest work using DESI DR2 data provides the strongest constraints on warm dark matter mass to date, ruling out particles lighter than 2.1 keV at 95% confidence level.</p>
+                        <h3>🌟 Major Conclusion</h3>
+                        <p>
+                            The apparent CMB lensing anomaly is consistent with a scale-dependent lensing amplitude when using Planck spectra alone, but this signal is driven by the lowest multipoles ($\ell\leq30$). Excluding those multipoles brings Planck into agreement with other CMB experiments and low-redshift data, removing the lensing and low-$\ell$ anomalies and reducing the $S_8$ tension. The surviving Hubble tension suggests the cosmological concordance model remains broadly consistent, but care must be taken to treat Planck low-$\ell$ data and potential systematics when interpreting extended-model inferences.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Data Analysis Section -->
-    <section class="data-analysis">
+    <!-- Research Content: Non-Cold Dark Matter from DESI -->
+    <section class="research-hero" style="padding-top: 28px; padding-bottom: 8px;">
         <div class="container">
-            <h2>Observational Constraints & Data Analysis</h2>
-            
-            <!-- Dark Matter Constraints Table -->
-            <div class="data-visualization">
-                <div class="data-table">
-                    <h3>Dark Matter Mass Constraints from Various Surveys</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Survey/Method</th>
-                                <th>Dark Matter Type</th>
-                                <th>Mass Constraint</th>
-                                <th>Confidence Level</th>
-                                <th>Publication</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>DESI DR2</td>
-                                <td>Warm DM</td>
-                                <td>m > 2.1 keV</td>
-                                <td>95% CL</td>
-                                <td>Singh et al. (2024)</td>
-                            </tr>
-                            <tr>
-                                <td>Planck + BAO</td>
-                                <td>Warm DM</td>
-                                <td>m > 1.8 keV</td>
-                                <td>95% CL</td>
-                            </tr>
-                            <tr>
-                                <td>Lyman-α Forest</td>
-                                <td>Warm DM</td>
-                                <td>m > 3.3 keV</td>
-                                <td>95% CL</td>
-                            </tr>
-                            <tr>
-                                <td>Galaxy Clustering</td>
-                                <td>Fuzzy DM</td>
-                                <td>m > 10⁻²² eV</td>
-                                <td>95% CL</td>
-                            </tr>
-                            <tr>
-                                <td>Strong Lensing</td>
-                                <td>Axion DM</td>
-                                <td>10⁻²³ - 10⁻²¹ eV</td>
-                                <td>Favored Range</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="research-header">
+                <div class="breadcrumb">
+                    <a href="index.html">Home</a> / <span>DESI BAO & Dark Matter</span>
+                </div>
+                <div class="research-icon" style="text-align: center;">
+                    <img src="1Dneff.png" alt="DESI BAO illustration" style="width: 30%; height: auto;" />
+                </div>
+                <h1>Constraints on Dark Matter Equation of State from DESI</h1>
+                <p class="research-subtitle">Exploring deviations from cold dark matter using recent DESI BAO measurements and combined dataset tensions.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="research-content">
+        <div class="container">
+            <div class="content-grid">
+                <div class="research-summary">
+                    <h2 class="section-ttl">Non-Cold Dark Matter: DESI BAO Evidence</h2>
+
+                    <p>
+                        We consider a dark matter component with energy density $\rho_{\rm dm}$ and equation-of-state parameter $w_{\rm dm}$. Using the latest Baryon Acoustic Oscillation (BAO) measurements from DESI we test for deviations from cold dark matter (CDM, $w_{\rm dm}=0$).
+                    </p>
+
+                    <p>
+                        DESI data alone gives $w_{\mathrm{dm}} = -0.042^{+0.047}_{-0.024}$, showing a mild preference for non-cold dark matter. The preference strengthens when combining datasets, but different dataset combinations produce a striking tension in the inferred $w_{\rm dm}$ values: DESI+DESY5 yields $w_{\mathrm{dm}} = -0.084 \pm 0.035$ (excluding CDM at $2.4\sigma$), whereas Planck+DESI gives $w_{\mathrm{dm}} = 0.00077\pm0.00038$, consistent with CDM and differing from the DESI+DESY5 result at $\sim2\sigma$.
+                    </p>
+
+                    <div class="research-figure">
+                        <img src="1Dneff.png" alt="DESI constraints on w_dm" />
+                        <p class="figure-caption">
+                            Figure: Posterior constraints on $w_{\rm dm}$ from DESI alone, DESI+DESY5 (low-$z$ enhancement), and Planck+DESI (high-z anchoring). Low-redshift BAO ($z<1.1$) drive the non-zero $w_{\rm dm}$ preference.
+                        </p>
+                    </div>
+
+                    <div class="key-objectives">
+                        <h3>Analysis highlights</h3>
+                        <ul>
+                            <li><strong>DESI-only:</strong> $w_{\mathrm{dm}} = -0.042^{+0.047}_{-0.024}$ — mild departure from CDM.</li>
+                            <li><strong>DESI+DESY5:</strong> $w_{\mathrm{dm}} = -0.084 \pm 0.035$ — CDM excluded at $2.4\sigma$.</li>
+                            <li><strong>Planck+DESI:</strong> $w_{\mathrm{dm}} = 0.00077\pm0.00038$ — consistent with CDM, in tension with DESI+DESY5.</li>
+                            <li><strong>Redshift dependence:</strong> Non-vanishing $w_{\rm dm}$ preference is driven by low-redshift BAO ($z<1.1$); higher-$z$ data remain consistent with $\Lambda$CDM.</li>
+                            <li><strong>Implications:</strong> DESI shows stronger evidence for non-cold dark matter than previous BAO surveys; dataset tensions motivate careful cross-validation and further investigation of systematics and low-z physics.</li>
+                        </ul>
+                    </div>
                 </div>
 
-                <!-- Cosmological Parameters -->
-                <div class="data-table">
-                    <h3>Cosmological Parameter Constraints</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Parameter</th>
-                                <th>CDM Model</th>
-                                <th>Warm DM Model</th>
-                                <th>Fuzzy DM Model</th>
-                                <th>Units</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Ω_m</td>
-                                <td>0.315 ± 0.007</td>
-                                <td>0.318 ± 0.009</td>
-                                <td>0.312 ± 0.011</td>
-                                <td>-</td>
-                            </tr>
-                            <tr>
-                                <td>H₀</td>
-                                <td>67.4 ± 0.5</td>
-                                <td>67.8 ± 0.8</td>
-                                <td>67.2 ± 1.2</td>
-                                <td>km/s/Mpc</td>
-                            </tr>
-                            <tr>
-                                <td>σ₈</td>
-                                <td>0.811 ± 0.006</td>
-                                <td>0.798 ± 0.015</td>
-                                <td>0.823 ± 0.018</td>
-                                <td>-</td>
-                            </tr>
-                            <tr>
-                                <td>n_s</td>
-                                <td>0.965 ± 0.004</td>
-                                <td>0.967 ± 0.005</td>
-                                <td>0.963 ± 0.006</td>
-                                <td>-</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <div class="research-results">
+                    <h2>Key Findings</h2>
 
-                <!-- Chart Placeholder -->
-                <div class="chart-container">
-                    <h3>Matter Power Spectrum: CDM vs Alternative Models</h3>
-                    <div class="chart-placeholder">
-                        <p>Interactive visualization showing matter power spectra P(k) for different dark matter models across scales from 0.01 to 10 h/Mpc. The suppression of power on small scales for warm and fuzzy dark matter models is clearly visible compared to cold dark matter.</p>
-                        <div class="chart-mock">📊 [Power Spectrum Chart - P(k) vs k]</div>
+                    <div class="impact-stats">
+                        <div class="stat-card">
+                            <div class="stat-number">$w_{\rm dm} = -0.042^{+0.047}_{-0.024}$</div>
+                            <div class="stat-label">DESI (alone)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">$w_{\rm dm} = -0.084 \pm 0.035$</div>
+                            <div class="stat-label">DESI + DESY5 (low-$z$)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">$w_{\rm dm} = 0.00077\pm0.00038$</div>
+                            <div class="stat-label">Planck + DESI</div>
+                        </div>
+                    </div>
+
+                    <div class="breakthrough-box">
+                        <h3>🌟 Major Conclusion</h3>
+                        <p>
+                            DESI BAO measurements provide intriguing evidence for non-cold dark matter when considered with certain low-redshift data combinations — a signal driven by $z<1.1$ observations. However, high-redshift constraints anchored by Planck prefer CDM, producing a notable tension between datasets. The improvement in fit over $\Lambda$CDM across combinations motivates further scrutiny: either we are seeing early hints of genuine non-CDM physics, or there remain dataset-dependent systematics to be resolved. Future cross-checks, expanded DESI analyses, and independent low-$z$ probes will be decisive.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Publications Related to This Research -->
+    <!-- Related Publications -->
     <section class="related-publications">
         <div class="container">
             <h2>Related Publications</h2>
             <div class="publications-grid">
                 <div class="publication-card featured">
                     <div class="publication-header">
-                        <h3>Non-cold dark matter constraints from the DESI survey: A comprehensive analysis</h3>
-                        <span class="pub-year">2024</span>
+                        <h3>Scale dependence of CMB lensing and the role of Planck low-$\ell$ multipoles</h3>
+                        <span class="pub-year">2025</span>
                     </div>
                     <div class="publication-meta">
-                        <span class="journal">Monthly Notices of the Royal Astronomical Society</span>
-                        <span class="citations">15 citations</span>
-                        <span class="impact-factor">IF: 4.8</span>
+                        <span class="journal">Submitted / arXiv</span>
+                        <span class="citations">—</span>
+                        <span class="impact-factor">—</span>
                     </div>
-                    <p class="abstract">We present the first comprehensive constraints on warm and fuzzy dark matter models using the complete DESI Data Release 2, achieving unprecedented precision in dark matter mass limits.</p>
+                    <p class="abstract">We analyze phenomenological extensions of the lensing amplitude $A_{\rm L}$, find moderate preference for a logarithmic scale dependence in Planck-only fits, and show that the effect is driven by multipoles $\ell\leq30$. Excluding those modes restores agreement with other CMB and low-z probes.</p>
                     <div class="publication-links">
-                        <a href="#" class="pub-link">arXiv:2404.xxxxx</a>
-                        <a href="#" class="pub-link">DOI</a>
-                        <a href="#" class="pub-link">NASA ADS</a>
+                        <a href="#" class="pub-link">arXiv:XXXX.XXXXX</a>
                     </div>
                 </div>
 
                 <div class="publication-card">
                     <div class="publication-header">
-                        <h3>Quantum corrections to dark matter clustering in the early universe</h3>
-                        <span class="pub-year">2023</span>
+                        <h3>DESI BAO constraints on the dark matter equation of state</h3>
+                        <span class="pub-year">2025</span>
                     </div>
                     <div class="publication-meta">
-                        <span class="journal">Physical Review D</span>
-                        <span class="citations">22 citations</span>
-                        <span class="impact-factor">IF: 5.4</span>
+                        <span class="journal">Submitted / arXiv</span>
                     </div>
-                    <p class="abstract">Investigation of quantum field theory corrections to dark matter clustering, with implications for structure formation and observable signatures in galaxy surveys.</p>
+                    <p class="abstract">Using DESI BAO data we constrain $w_{\rm dm}$ and find a mild-to-moderate preference for non-cold dark matter, driven by low-redshift BAO measurements. Combined dataset tensions with Planck motivate further investigation.</p>
+                    <div class="publication-links">
+                        <a href="#" class="pub-link">arXiv:XXXX.XXXXX</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -256,8 +239,8 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-info">
-                    <h3>Amresh Kumar Singh</h3>
-                    <p>PhD Researcher in Cosmology at Ariel University, exploring the fundamental nature of the universe through theoretical and observational approaches.</p>
+                    <h3>Amresh Verma</h3>
+                    <p>PhD Researcher in Cosmology at Ariel University — theoretical and observational probes of the early Universe.</p>
                 </div>
             </div>
             <div class="footer-bottom">
@@ -267,7 +250,7 @@
                     <span>for advancing cosmological research</span>
                 </div>
                 <div class="footer-copyright">
-                    <span>&copy; 2024 Amresh Kumar Singh. All rights reserved.</span>
+                    <span>&copy; 2025 Amresh Verma. No rights reserved. Copy whatever you need.</span>
                 </div>
             </div>
         </div>
