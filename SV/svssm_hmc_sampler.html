@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>svssm_hmc — Sampler Engine (deep dive)</title>
+<style>
+  :root{
+    --bg:#ffffff; --text:#222; --head:#111; --border:#ddd;
+    --accent:#2f6fed; --code:#f5f5f5; --muted:#666; --warn:#b25000;
+    --okbg:#eef6ee; --okbd:#bcd9bc; --infbg:#fff6e6; --infbd:#f0d9a8;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;font-size:16px;}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 24px;}
+  .layout{display:flex;gap:32px;align-items:flex-start;}
+  nav.toc{position:sticky;top:0;align-self:flex-start;flex:0 0 240px;
+    max-height:100vh;overflow-y:auto;padding:24px 8px 48px 0;
+    font-size:13.5px;border-right:1px solid var(--border);}
+  nav.toc h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--muted);margin:18px 0 8px;}
+  nav.toc a{display:block;color:var(--text);text-decoration:none;
+    padding:3px 0 3px 10px;border-left:2px solid transparent;}
+  nav.toc a:hover{color:var(--accent);border-left-color:var(--accent);}
+  main{flex:1 1 auto;min-width:0;padding:24px 0 96px;}
+  h1{font-size:29px;color:var(--head);margin:.2em 0 .1em;line-height:1.2;}
+  h2{font-size:23px;color:var(--head);margin:1.8em 0 .5em;
+    padding-bottom:.25em;border-bottom:1px solid var(--border);}
+  h3{font-size:18px;color:var(--head);margin:1.4em 0 .4em;}
+  h4{font-size:15px;color:var(--head);margin:1.1em 0 .3em;
+    text-transform:uppercase;letter-spacing:.03em;font-weight:600;}
+  a{color:var(--accent);}
+  code{font-family:"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+    background:var(--code);padding:1px 5px;border-radius:4px;font-size:.88em;}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:8px;
+    padding:14px 16px;overflow-x:auto;white-space:pre;line-height:1.45;font-size:12.5px;}
+  pre code{background:none;padding:0;font-size:inherit;}
+  details{border:1px solid var(--border);border-radius:8px;margin:12px 0;
+    padding:0 16px;background:#fcfcfc;}
+  details[open]{padding-bottom:8px;}
+  summary{cursor:pointer;padding:12px 0;font-weight:600;color:var(--head);
+    list-style-position:inside;}
+  summary:hover{color:var(--accent);}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:left;vertical-align:top;}
+  th{background:#f0f2f5;}
+  tbody tr:nth-child(even){background:#fafbfc;}
+  .note{background:var(--infbg);border:1px solid var(--infbd);border-radius:8px;
+    padding:10px 14px;margin:14px 0;}
+  .fact{background:var(--okbg);border:1px solid var(--okbd);border-radius:8px;
+    padding:10px 14px;margin:14px 0;}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin:8px 0 18px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid #999;}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;
+    border:1px solid var(--border);background:#f4f4f4;color:var(--muted);
+    margin-left:6px;vertical-align:middle;}
+  .tag.fact-tag{background:var(--okbg);border-color:var(--okbd);color:#2c6b2c;}
+  .tag.inf-tag{background:var(--infbg);border-color:var(--infbd);color:var(--warn);}
+  figure{margin:18px 0;text-align:center;}
+  figure svg{max-width:100%;height:auto;border:1px solid var(--border);
+    border-radius:8px;background:#fff;}
+  figcaption{font-size:13px;color:var(--muted);margin-top:6px;}
+  .kvs td:first-child{font-family:monospace;white-space:nowrap;width:1%;}
+  hr{border:none;border-top:1px solid var(--border);margin:32px 0;}
+  .small{font-size:13px;color:var(--muted);}
+  .crumb{font-size:13px;color:var(--muted);margin-bottom:4px;}
+  @media (max-width:820px){
+    .layout{flex-direction:column;}
+    nav.toc{position:static;max-height:none;flex-basis:auto;width:100%;
+      border-right:none;border-bottom:1px solid var(--border);padding-bottom:12px;}
+    nav.toc a{display:inline-block;margin-right:12px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="layout">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <a href="#summary">1 · Summary</a>
+  <a href="#bigpic">2 · How they fit together</a>
+  <a href="#kernel">3 · _build_preconditioned_kernel</a>
+  <a href="#namedtuple">&nbsp;&nbsp;↳ The namedtuple tree</a>
+  <a href="#trace">4 · _trace_preconditioned</a>
+  <a href="#window">5 · _run_window</a>
+  <a href="#wproper">6 · run_chain_windowed_proper</a>
+  <a href="#budget">&nbsp;&nbsp;↳ Window budget</a>
+  <a href="#mass">&nbsp;&nbsp;↳ Mass-matrix math</a>
+  <a href="#sampling">&nbsp;&nbsp;↳ Chunked sampling</a>
+  <a href="#runchain">7 · run_chain</a>
+  <a href="#seeds">8 · Seed discipline</a>
+  <a href="#complexity">9 · Complexity &amp; memory</a>
+  <a href="#debug">10 · Debugging guide</a>
+  <a href="#modify">11 · Modification guide</a>
+  <a href="#testing">12 · Testing strategy</a>
+  <a href="#interview">13 · Interview questions</a>
+  <a href="#whiteboard">14 · Whiteboard</a>
+  <a href="#cheat">15 · Cheat sheet</a>
+</nav>
+
+<main>
+<p class="crumb">Focused deep-dive · slice of <code>svssm_hmc.py</code> ·
+companion to <code>../svssm_hmc/svssm_hmc.html</code></p>
+<h1>The SVSSM HMC Sampler Engine</h1>
+<p class="small">Five functions that turn a target log-posterior into posterior draws:
+<code>_build_preconditioned_kernel</code>, <code>_trace_preconditioned</code>,
+<code>_run_window</code>, <code>run_chain_windowed_proper</code>, <code>run_chain</code>.</p>
+
+<div class="legend">
+  <span><span class="swatch" style="background:var(--okbg)"></span> <b>Fact</b> — visible in the code/comments</span>
+  <span><span class="swatch" style="background:var(--infbg)"></span> <b>Inference</b> — reasonable, not provable from this slice</span>
+</div>
+
+<div class="note"><b>Scope.</b> This document zooms into the sampler. It assumes
+<code>target_log_prob_fn(theta_raw) → scalar log-posterior</code> already exists
+(built elsewhere by <code>make_target_log_prob</code>) and that the expensive
+particle-filter likelihood lives <i>inside</i> it. Everything here is sampler
+mechanics: TFP kernel plumbing, leapfrog/dual-averaging, and the hand-rolled
+windowed mass-matrix adaptation.</div>
+
+<!-- ============ 1 SUMMARY ============ -->
+<h2 id="summary">1 · Summary</h2>
+<p>These functions implement <b>Hamiltonian Monte Carlo</b> two ways:</p>
+<ul>
+<li><b>Vanilla</b> (<code>run_chain</code>, default): TFP
+<code>HamiltonianMonteCarlo</code> + <code>DualAveragingStepSizeAdaptation</code>,
+identity mass matrix. One fused <code>sample_chain</code> call (or an eager
+step-by-step loop when progress logging is on).</li>
+<li><b>Windowed adaptive</b> (<code>run_chain_windowed_proper</code>): a hand-rolled,
+Stan-style warmup that adapts <i>both</i> the step size (dual-averaging) <i>and</i> the
+mass matrix (inverse posterior covariance), re-estimated in expanding windows, then a
+frozen sampling phase. Built on three helpers — <code>_build_preconditioned_kernel</code>
+(constructs the kernel), <code>_trace_preconditioned</code> (reads per-step diagnostics),
+and <code>_run_window</code> (runs one block and returns the smoothed step size).</li>
+</ul>
+<p><b>Why two?</b> Vanilla is cheap and fine when the posterior is roughly spherical.
+The windowed sampler exists to handle non-spherical geometry — specifically the
+(<code>phi</code>, <code>sigma_eta²</code>) correlation ridge (~−0.79 at T=100, per the
+docstring) — and to dodge a <i>runaway step-size pathology</i> that the naïve
+monolithic adapter stack suffers from. <span class="tag fact-tag">docstring</span></p>
+
+<!-- ============ 2 BIG PICTURE ============ -->
+<h2 id="bigpic">2 · How they fit together</h2>
+<figure>
+<svg viewBox="0 0 940 300" role="img" aria-label="Call graph of the five functions">
+  <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+    <path d="M0,0 L7,3 L0,6 Z" fill="#888"/></marker></defs>
+  <style>
+    .n{fill:#f7f9ff;stroke:#2f6fed;stroke-width:1.1;}
+    .nx{fill:#f3f3f3;stroke:#999;stroke-width:1.1;}
+    .t{font:12.5px Inter,Arial,sans-serif;fill:#222;}
+    .e{stroke:#aaa;stroke-width:1;fill:none;marker-end:url(#a);}
+    .lbl{font:11px Inter,Arial,sans-serif;fill:#777;}
+  </style>
+  <rect class="n" x="20" y="130" width="120" height="34" rx="6"/><text class="t" x="80" y="151" text-anchor="middle">run_chain</text>
+
+  <rect class="n" x="200" y="60" width="220" height="34" rx="6"/><text class="t" x="310" y="81" text-anchor="middle">run_chain_windowed_proper</text>
+  <rect class="nx" x="200" y="200" width="220" height="34" rx="6"/><text class="t" x="310" y="221" text-anchor="middle">tfm.HMC + DualAveraging (vanilla)</text>
+  <line class="e" x1="140" y1="140" x2="200" y2="80"/><text class="lbl" x="150" y="100">windowed</text>
+  <line class="e" x1="140" y1="154" x2="200" y2="214"/><text class="lbl" x="150" y="186">else</text>
+
+  <rect class="n" x="480" y="60" width="130" height="34" rx="6"/><text class="t" x="545" y="81" text-anchor="middle">_run_window</text>
+  <line class="e" x1="420" y1="77" x2="480" y2="77"/><text class="lbl" x="430" y="70">×5 blocks</text>
+
+  <rect class="n" x="480" y="130" width="240" height="30" rx="6"/><text class="t" x="600" y="150" text-anchor="middle">make_momentum_diag / dense (closures)</text>
+  <rect class="n" x="480" y="168" width="280" height="30" rx="6"/><text class="t" x="620" y="188" text-anchor="middle">diag/dense_precision_from_window (closures)</text>
+  <line class="e" x1="420" y1="86" x2="480" y2="140"/>
+  <line class="e" x1="420" y1="90" x2="480" y2="178"/>
+
+  <rect class="n" x="670" y="20" width="240" height="30" rx="6"/><text class="t" x="790" y="40" text-anchor="middle">_build_preconditioned_kernel</text>
+  <rect class="n" x="670" y="58" width="240" height="30" rx="6"/><text class="t" x="790" y="78" text-anchor="middle">_trace_preconditioned</text>
+  <line class="e" x1="610" y1="72" x2="670" y2="40"/>
+  <line class="e" x1="610" y1="78" x2="670" y2="72"/>
+
+  <rect class="nx" x="670" y="100" width="240" height="30" rx="6"/><text class="t" x="790" y="120" text-anchor="middle">tfm.sample_chain (TFP)</text>
+  <line class="e" x1="610" y1="80" x2="670" y2="112"/>
+</svg>
+<figcaption>Gray = external (TFP) or the vanilla path. The windowed branch fans out
+through <code>_run_window</code>, which builds a kernel, runs <code>sample_chain</code>,
+and traces it.</figcaption>
+</figure>
+
+<!-- ============ 3 BUILD KERNEL ============ -->
+<h2 id="kernel">3 · _build_preconditioned_kernel</h2>
+<p><b>Signature.</b> <code>(target_log_prob_fn, step_size, num_leapfrog,
+momentum_dist, target_accept_prob, num_adaptation_steps) → kernel</code>.
+<b>Returns</b> a TFP MCMC kernel: a bare
+<code>PreconditionedHamiltonianMonteCarlo</code> if
+<code>num_adaptation_steps is None</code>, else that kernel wrapped in
+<code>DualAveragingStepSizeAdaptation</code>.</p>
+<pre><code>inner = tfp.experimental.mcmc.PreconditionedHamiltonianMonteCarlo(
+    target_log_prob_fn, step_size=tf.constant(step_size, f32),
+    num_leapfrog_steps=int(num_leapfrog),
+    momentum_distribution=momentum_dist)        # &lt;- the mass matrix lives here
+if num_adaptation_steps is None:
+    return inner                                # sampling phase: frozen step
+return tfm.DualAveragingStepSizeAdaptation(inner, num_adaptation_steps, target_accept_prob,
+    step_size_setter_fn=..., step_size_getter_fn=..., log_accept_prob_getter_fn=...)</code></pre>
+
+<h4>Step-by-step</h4>
+<ul>
+<li><b>Preconditioning = the mass matrix.</b> Plain HMC uses an identity-covariance
+momentum; <code>PreconditionedHMC</code> lets you pass any
+<code>momentum_distribution</code>. Its covariance <i>is</i> the mass matrix M. This is
+the single hook the whole windowed scheme exploits.</li>
+<li><b>None ⇒ bare kernel.</b> During sampling the step size is fixed, so no adaptation
+wrapper is needed; returning <code>inner</code> directly avoids the wrapper overhead and
+the extra results layer.</li>
+<li><b>Else ⇒ dual-averaging wrap</b> with three custom accessor lambdas (next).</li>
+</ul>
+
+<h3 id="namedtuple">The namedtuple tree (why the lambdas exist)</h3>
+<p><code>DualAveragingStepSizeAdaptation</code> must <i>read</i> the current step size
+to update it and <i>write</i> the new one back — both buried inside the inner kernel's
+results namedtuple. Because the inner kernel is <i>Preconditioned</i> HMC (one extra
+wrapper vs plain HMC), the default accessors don't line up, so the code supplies explicit
+getter/setter/log-accept functions that walk this exact structure:
+<span class="tag fact-tag">docstring</span></p>
+<figure>
+<svg viewBox="0 0 760 250" role="img" aria-label="Kernel results namedtuple tree">
+  <style>
+    .b{fill:#f7f9ff;stroke:#2f6fed;stroke-width:1.1;}
+    .l{font:12.5px 'SF Mono',monospace;fill:#222;}
+    .f{font:11px 'SF Mono',monospace;fill:#b25000;}
+    .e{stroke:#888;stroke-width:1;fill:none;}
+  </style>
+  <rect class="b" x="20" y="20" width="300" height="34" rx="6"/><text class="l" x="32" y="42">DualAveraging.results</text>
+  <text class="f" x="330" y="40">getter reads here ↓ · setter writes here ↓</text>
+  <rect class="b" x="70" y="80" width="320" height="34" rx="6"/><text class="l" x="82" y="102">.inner_results  (MH KernelResults)</text>
+  <rect class="b" x="120" y="140" width="360" height="34" rx="6"/><text class="l" x="132" y="162">.accepted_results  (UncalibPHMC.results)</text>
+  <rect class="b" x="170" y="200" width="200" height="34" rx="6"/><text class="l" x="182" y="222">.step_size</text>
+  <rect class="b" x="400" y="200" width="240" height="34" rx="6"/><text class="l" x="412" y="222">.log_accept_ratio</text>
+  <line class="e" x1="60" y1="54" x2="120" y2="80"/>
+  <line class="e" x1="110" y1="114" x2="160" y2="140"/>
+  <line class="e" x1="160" y1="174" x2="210" y2="200"/>
+  <line class="e" x1="300" y1="114" x2="500" y2="200"/>
+</svg>
+<figcaption>The three lambdas map to: <code>getter = kr.accepted_results.step_size</code>;
+<code>setter = kr._replace(accepted_results=kr.accepted_results._replace(step_size=ss))</code>;
+<code>log_accept = kr.log_accept_ratio</code>. Note: the lambdas receive the
+<i>inner</i> (MH-level) results, so they address <code>accepted_results</code> directly.</figcaption>
+</figure>
+<div class="note"><b>Why <code>_replace</code>?</b> Namedtuples are immutable, so the
+setter builds a <i>new</i> results tuple with the step size swapped — functional update,
+not mutation. <b>Fragility:</b> these lambdas are coupled to TFP's exact results layout;
+a TFP version that renames a field or adds a wrapper layer breaks them. This is the
+single biggest version-coupling risk in the sampler.</div>
+<p><b>Complexity</b> O(1) construction. <b>Edge case</b>: passing
+<code>num_adaptation_steps=0</code> (vs <code>None</code>) would still build the adapter
+but with zero adaptation — the code uses <code>None</code> as the "no adapt" sentinel, so
+callers must honor that distinction (and <code>_run_window</code> does).</p>
+
+<!-- ============ 4 TRACE ============ -->
+<h2 id="trace">4 · _trace_preconditioned(_, kr)</h2>
+<p>A <code>trace_fn</code> is called by <code>sample_chain</code> every step with the
+(new state, new kernel-results); whatever it returns is collected into the per-step
+trace. This one returns <code>(accepted, log_prob, step_size)</code> and is written to
+work for <i>both</i> kernel layerings:</p>
+<pre><code>if hasattr(kr, "new_step_size"):        # adapted: DualAveraging is the outer layer
+    step = kr.new_step_size
+    mh   = kr.inner_results             # peel one layer to the MH results
+else:                                   # bare PreconditionedHMC (sampling phase)
+    mh   = kr
+    step = mh.accepted_results.step_size
+return mh.is_accepted, cast(mh.accepted_results.target_log_prob), cast(step)</code></pre>
+<ul>
+<li><b>Duck-typing probe.</b> Only the dual-averaging wrapper exposes
+<code>new_step_size</code>; its presence distinguishes "adapted" from "bare". This lets
+one trace function serve both warmup (adapted) and sampling (bare) windows, which is why
+<code>_run_window</code> can pass <code>_trace_preconditioned</code> unconditionally.</li>
+<li><b>Why <code>new_step_size</code> for the adapted case</b> but
+<code>accepted_results.step_size</code> for the bare case? In the adapted wrapper the
+"current" step is the freshly-proposed one (<code>new_step_size</code>); the bare kernel
+has no such field, so we read the frozen step from the inner results.</li>
+<li><b><code>tf.cast(..., float32)</code></b> normalises dtypes so the collected trace
+arrays are uniform.</li>
+</ul>
+<p><b>Complexity</b> O(1) per step. <b>Edge case</b>: relies on the attribute names
+<code>new_step_size</code>, <code>is_accepted</code>, <code>accepted_results</code>,
+<code>target_log_prob</code> being stable across TFP versions (same coupling risk as §3).</p>
+
+<!-- ============ 5 RUN WINDOW ============ -->
+<h2 id="window">5 · _run_window — one block of HMC</h2>
+<p><b>Signature.</b> <code>(target, init_state, num_steps, step_size, num_leapfrog,
+momentum_dist, target_accept_prob, adapt_step_size, seed)</code> →
+<code>(final_state, samples, acc, lp, step_arr, final_step)</code>. This is the
+atom the windowed sampler composes: run <code>num_steps</code> HMC steps from
+<code>init_state</code>, optionally adapting the step size, and report the
+<i>smoothed</i> final step.</p>
+<pre><code>num_adapt = int(num_steps) if adapt_step_size else None   # None ⇒ bare kernel
+kernel = _build_preconditioned_kernel(..., num_adaptation_steps=num_adapt)
+# warmup branch:
+samples, (acc, lp, step_arr), final_kr = tfm.sample_chain(
+    num_results=num_steps, num_burnin_steps=0, current_state=init_state,
+    kernel=kernel, trace_fn=_trace_preconditioned, seed=seed,
+    return_final_kernel_results=True)</code></pre>
+
+<h4>The smoothed-step logic (the subtle part)</h4>
+<pre><code>try:
+    arr = np.asarray(tf.exp(final_kr.log_averaging_step).numpy())
+    smoothed = float(arr.flatten()[0]) if arr.size &gt; 0 else 0.0
+except (AttributeError, ValueError):
+    smoothed = 0.0
+final_step = smoothed if smoothed &gt; 0.0 \
+             else float(np.asarray(step_arr[-1].numpy()).flatten()[-1])</code></pre>
+<div class="note"><b>Why <code>exp(log_averaging_step)</code> and not the last
+<code>new_step_size</code>?</b> <span class="tag fact-tag">comment</span> Nesterov
+dual-averaging keeps two quantities: a fast-moving <code>new_step_size</code> (noisy)
+and a slow running average <code>log_averaging_step</code> (smoothed) — the latter is
+what Hoffman &amp; Gelman recommend and what Stan reports as the final step. In short
+windows the fast value hasn't settled, so the smoothed average is far more robust. The
+<code>try/except</code> + <code>&gt;0</code> guard falls back to the last traced step if
+the field is missing or zero (defensive against TFP shape/version quirks).</div>
+<ul>
+<li><b><code>num_burnin_steps=0</code></b> on purpose: warmup is managed <i>externally</i>
+by the windowing loop, not by <code>sample_chain</code> — every step is kept so the
+window's samples can be used to estimate the mass matrix.</li>
+<li><b>Non-adapt branch</b>: <code>final_step = float(step_size)</code> — the input is
+returned unchanged because sampling freezes it; <code>step_arr</code> isn't even read.</li>
+<li><b><code>final_state = samples[-1]</code></b> threads the chain's last position into
+the next window so windows are <i>continuous</i> (no re-initialisation between them).</li>
+</ul>
+<p><b>Complexity</b> O(num_steps × L × cost(target)). <b>Edge cases</b>: the nested
+<code>.numpy().flatten()[-1]</code> guards scalar-vs-array shape ambiguity in the traced
+step; <code>tf.exp</code> of a missing field is caught by the <code>except</code>.</p>
+
+<!-- ============ 6 WINDOWED PROPER ============ -->
+<h2 id="wproper">6 · run_chain_windowed_proper — the warmup engine</h2>
+<p>This is the centerpiece. It schedules warmup as <b>init → 3 expanding windows →
+(frozen) sampling</b>, adapting step size in every warmup window and the mass matrix at
+the end of all but the last.</p>
+
+<figure>
+<svg viewBox="0 0 940 150" role="img" aria-label="Warmup window timeline">
+  <style>
+    .seg{stroke:#333;stroke-width:1;}
+    .t{font:12px Inter,Arial,sans-serif;fill:#222;}
+    .s{font:11px Inter,Arial,sans-serif;fill:#555;}
+  </style>
+  <rect class="seg" x="20"  y="40" width="90"  height="36" fill="#e8eefc"/>
+  <rect class="seg" x="110" y="40" width="90"  height="36" fill="#dfeadf"/>
+  <rect class="seg" x="200" y="40" width="150" height="36" fill="#cfe0cf"/>
+  <rect class="seg" x="350" y="40" width="260" height="36" fill="#bcd6bc"/>
+  <rect class="seg" x="610" y="40" width="310" height="36" fill="#f3e7cf"/>
+  <text class="t" x="65"  y="63" text-anchor="middle">init</text>
+  <text class="t" x="155" y="63" text-anchor="middle">W1</text>
+  <text class="t" x="275" y="63" text-anchor="middle">W2</text>
+  <text class="t" x="480" y="63" text-anchor="middle">W3 (super)</text>
+  <text class="t" x="765" y="63" text-anchor="middle">SAMPLING (frozen eps + mass)</text>
+  <text class="s" x="65"  y="96" text-anchor="middle">~10% B</text>
+  <text class="s" x="155" y="96" text-anchor="middle">step+mass↑</text>
+  <text class="s" x="275" y="96" text-anchor="middle">step+mass↑</text>
+  <text class="s" x="480" y="96" text-anchor="middle">step only · mass FROZEN</text>
+  <text class="s" x="765" y="96" text-anchor="middle">no adaptation · chunked</text>
+  <text class="s" x="20"  y="120">identity mass</text>
+  <text class="s" x="350" y="120">↑ mass from W2 used through W3 = the term window</text>
+</svg>
+<figcaption>Each warmup window continues from the previous one's final state. Mass is
+updated at the end of init/W1/W2; W3 deliberately does <b>not</b> update it.</figcaption>
+</figure>
+
+<h3 id="budget">Window budget</h3>
+<pre><code>phase1_n     = max(int(B*0.10), 5)        # init window
+phase2_total = max(B - phase1_n, 18)
+w1 = max(phase2_total // 8, 4)
+w2 = max(phase2_total // 4, 6)
+w3 = max(phase2_total - w1 - w2, 8)       # the "super-window"</code></pre>
+<div class="note"><b>Key design — no separate "term" phase.</b>
+<span class="tag fact-tag">comment</span> Stan normally ends warmup with a short
+fixed-mass "term" window where the step size settles against the final mass matrix.
+Here the <b>last expanding window IS the term window</b>: W3 does not update the mass at
+its end, so the step size it adapts is already tuned against the exact mass matrix
+sampling will use. The docstring records why a <i>separate</i> short term phase failed:
+the mass changed at term-start, forcing the step to re-equilibrate with only ~8–16 steps
+left — not enough for dual-averaging to settle, so one chain landed at a locally-OK but
+sampling-bad step. Enlarging W3 to absorb the term role fixes that.</div>
+<p>The <code>max(..., floor)</code> guards keep windows usable even when
+<code>num_burnin</code> is tiny (degrades adaptation quality but never crashes). Note the
+docstring says "1:2:4" / "1:2:5" while the code yields roughly 1:2:5 from
+<code>//8, //4, remainder</code> — a minor doc/code drift worth flagging in review.</p>
+
+<h3 id="mass">Mass-matrix math — the crux</h3>
+<div class="fact"><b>Convention: mass matrix M := Σ⁻¹ (inverse posterior covariance).</b>
+The momentum distribution's covariance is set to <b>M = precision</b>, not Σ. The
+leapfrog position update <code>q += eps · M⁻¹ · p</code> then scales by Σ, so
+high-variance directions take proportionally larger steps. This "sphericises" the
+geometry. <span class="tag fact-tag">docstring/comment</span></div>
+<p>The docstring explicitly records a fixed bug: <i>"v4 passed sample variance directly
+as momentum scale² — wrong direction"</i>, masked only because all three SVSSM params
+have similar posterior scale. Correct direction = <b>precision</b>, derived below.</p>
+
+<h4>Diagonal mode</h4>
+<pre><code>var = clip(reduce_variance(win, axis=0), 0.1, 10.0)
+precision_diag = 1.0 / var
+momentum = Independent(Normal(0, sqrt(precision_diag)))   # scale = sqrt(M)</code></pre>
+
+<h4>Dense mode (default)</h4>
+<pre><code>cov = covariance(win) + 1e-4·I            # ridge for a stable eigh
+cov = symmetrise(cov)
+e, v = eigh(cov);  e_clip = clip(e, 0.1, 10.0)            # bound EIGENVALUES
+cov_clip = v · diag(e_clip) · vᵀ ;  symmetrise
+precision = symmetrise( inv(cov_clip) )
+momentum = MultivariateNormalTriL(scale_tril = cholesky(precision))   # cov = M</code></pre>
+<div class="note"><b>Why eigen-clip, not entry-clip?</b>
+<span class="tag fact-tag">comment</span> Clipping eigenvalues to <code>[0.1, 10]</code>
+bounds the <i>per-direction scale</i> while preserving the <i>eigenvectors</i> — i.e. it
+keeps the correlation structure (the phi–σ² ridge) but prevents any direction's variance
+from collapsing to ~0 (which would make precision, and thus leapfrog trajectory length,
+explode — the "briefly-stuck-chain" pathology). Identity mass ≡ var 1, so
+<code>[0.1, 10]</code> permits a 10× rescale either way. <b>Note for MVNTriL:</b>
+<code>scale_tril</code> must be the Cholesky of the <i>distribution covariance</i>, which
+here equals the precision — so we feed <code>cholesky(precision)</code> directly.</div>
+<p><b>Why reset the step-size adapter at each window boundary?</b>
+<span class="tag fact-tag">docstring</span> A monolithic
+<code>DualAverage[DiagonalMass[PHMC]]</code> stack runs two adapters that update
+<i>independently every step</i>; they can co-amplify and drive the step size to
+<code>inf</code> on bad geometry. Building a <i>fresh</i> dual-averaging kernel per
+window (each <code>_run_window</code> call constructs a new kernel) breaks that feedback
+loop. This is the core reason the function is hand-rolled instead of using TFP's built-in
+<code>DiagonalMassMatrixAdaptation</code>.</p>
+
+<h4>The warmup loop, step by step</h4>
+<ol>
+<li>Init momentum = <b>identity</b> mass (dense: <code>I</code>; diag: <code>ones</code>).</li>
+<li><b>Init window</b>: <code>_run_window(adapt=True)</code>; clip
+<code>eps ∈ [1e-4, 0.3]</code>.</li>
+<li><b>For each of W1, W2, W3</b>: run with current mass + step-size adapt; clip
+<code>eps</code>; <b>if not the last window</b>, take the window's post-burn samples
+(<code>skip = max(25%·wsize, 1)</code>), estimate precision, rebuild the momentum
+distribution. Log diag-variance and (dense) max |correlation|.</li>
+</ol>
+<p><b>Step-size cap rationale</b> <span class="tag fact-tag">comment</span>: capped to
+<code>[1e-4, 0.3]</code> (not 0.5). The comment records that <code>eps=0.5</code> +
+frozen-mass sampling gave &lt;5% acceptance on 2/4 chains in a 72-min laptop test; the
+0.3 cap keeps every chain productive. (There's a doc/code drift here too: a comment
+mentions "target_accept 0.8" but the effective default is 0.65 — see §7.)</p>
+
+<h3 id="sampling">Chunked sampling phase</h3>
+<pre><code>chunk_size = clamp(progress_every or num_results, 1, num_results)
+while samples_done &lt; num_results:
+    this_chunk = min(chunk_size, num_results - samples_done)
+    state, samp_c, acc_c, lp_c, _, _ = _run_window(..., adapt_step_size=False,
+        seed = seed + 1_234_567 + chunk_idx*7919)   # distinct stream per chunk
+    ... accumulate; print heartbeat with ETA ...
+samples = concat(chunks); acc = concat; lp = concat</code></pre>
+<ul>
+<li><b>Why chunk?</b> <span class="tag fact-tag">comment</span> So the run emits
+heartbeat lines (with running acceptance + ETA) during sampling, which at high
+<code>T</code> can be hours. With <code>progress_every == 0</code> it's a single chunk
+(silent).</li>
+<li><b>Frozen everything</b>: <code>adapt_step_size=False</code> and the same
+<code>momentum</code> across chunks ⇒ a single homogeneous Markov chain split only for
+logging; concatenating the chunks is valid because the transition kernel is identical.</li>
+<li><b>Synthesised step array</b>: since the step is frozen, the function returns
+<code>np.full(num_results, current_step)</code> rather than the traced array — the
+comment notes the bare-kernel trace can have inconsistent shape.</li>
+</ul>
+<p><b>Returns</b> NumPy arrays <code>(samples, acc, lp, step_arr)</code> — matching
+<code>run_chain</code>'s vanilla return so callers are agnostic to which sampler ran.</p>
+<p><b>Complexity</b> O(total_steps × L × cost(target)); the per-window 3×3
+<code>eigh</code>/<code>inv</code> is negligible. <b>Memory</b> O(draws × d) plus
+transient per-window blocks. <b>Edge cases</b>: tiny windows → noisy mass estimate;
+non-PSD window covariance handled by the ridge + eigen-clip; <code>skip</code> can leave
+very few samples for the estimate in small windows.</p>
+
+<!-- ============ 7 RUN CHAIN ============ -->
+<h2 id="runchain">7 · run_chain — the dispatcher</h2>
+<p><b>Signature.</b> <code>(target, init_raw, num_results, num_burnin, step_size,
+num_leapfrog, seed, target_accept_prob=None, progress_every=0,
+use_windowed_adaptive=False, dense_mass=True)</code> →
+<code>(samples, acc, lp, step)</code> as NumPy.</p>
+<p>If <code>use_windowed_adaptive</code>, forward to
+<code>run_chain_windowed_proper</code> with default
+<code>target_accept_prob = 0.65</code>. Otherwise build the <b>vanilla</b> stack:</p>
+<pre><code>kernel = tfm.HamiltonianMonteCarlo(target, step_size, num_leapfrog_steps)
+kernel = tfm.DualAveragingStepSizeAdaptation(kernel,
+            num_adaptation_steps=num_burnin, target_accept_prob=0.65)</code></pre>
+
+<div class="note"><b>Doc/code drift to flag in interview/review.</b> Two comments here
+say the vanilla branch is "less conservative than the windowed branch's 0.80", but the
+windowed branch's actual default is <b>0.65</b> (set in this same function). The earlier
+0.80 target was tried and reverted — the comments are stale. Substance: <b>both</b>
+branches default to <code>target_accept_prob = 0.65</code> (Hoffman &amp; Gelman's
+fixed-L recommendation). <span class="tag fact-tag">code vs comment</span></div>
+
+<h4>The robust trace_fn</h4>
+<pre><code>inner = kr
+while hasattr(inner, "inner_results"):     # drill through ALL wrapper layers
+    inner = inner.inner_results
+accepted = cast(inner.is_accepted) if hasattr(inner, "is_accepted") else False
+lp = inner.target_log_prob if hasattr(inner, "target_log_prob") \
+     else inner.accepted_results.target_log_prob if hasattr(...) else nan
+step = kr.new_step_size if hasattr(kr, "new_step_size") else nan</code></pre>
+<p>Unlike <code>_trace_preconditioned</code> (which knows it's exactly one or zero
+wrappers), this one <b>loops</b> through arbitrarily many <code>inner_results</code>
+layers and uses <code>hasattr</code> fallbacks for every field — maximally defensive,
+because the vanilla stack's layer count can vary. Reads the step from the
+<i>outermost</i> <code>new_step_size</code> (the adapter), not the inner results.</p>
+
+<h4>Two execution paths</h4>
+<table>
+<thead><tr><th></th><th><code>progress_every ≤ 0</code></th><th><code>progress_every &gt; 0</code></th></tr></thead>
+<tbody>
+<tr><td>Mechanism</td><td>One fused <code>tfm.sample_chain(num_burnin_steps=num_burnin)</code></td><td>Eager Python loop over <code>kernel.one_step</code> with <code>bootstrap_results</code></td></tr>
+<tr><td>Speed</td><td>Fast (graph-compiled, internal warmup)</td><td>Slower (eager, per-step Python)</td></tr>
+<tr><td>Visibility</td><td>Silent</td><td>Heartbeat every <code>progress_every</code> steps</td></tr>
+<tr><td>Seed</td><td>Scalar <code>seed</code></td><td>Stateless 2-vector <code>[seed, s+1]</code> per step</td></tr>
+<tr><td>Kept draws</td><td><code>sample_chain</code> drops burn-in</td><td>Manual: only <code>s ≥ num_burnin</code> appended</td></tr>
+</tbody></table>
+<p><b>Complexity</b> O((burnin+results) × L × cost(target)). <b>Edge cases</b>: the two
+paths use different RNG conventions (scalar vs 2-vector seed), so results are not
+bit-identical between them — a reproducibility gotcha if you compare logged vs silent
+runs.</p>
+
+<!-- ============ 8 SEEDS ============ -->
+<h2 id="seeds">8 · Seed discipline</h2>
+<p>Seeding is deliberately structured so windows and chunks draw from
+<i>distinct</i> streams while staying reproducible:</p>
+<table>
+<thead><tr><th>Site</th><th>Seed</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>init window</td><td><code>seed</code></td><td>Base stream.</td></tr>
+<tr><td>warmup window <code>wi</code></td><td><code>seed + 10_000·(wi+1)</code></td><td>Large stride so windows don't overlap streams.</td></tr>
+<tr><td>sampling chunk <code>k</code></td><td><code>seed + 1_234_567 + k·7919</code></td><td>Offset + prime stride ⇒ decorrelated, reproducible chunk streams.</td></tr>
+<tr><td>vanilla loop step <code>s</code></td><td><code>[seed, s+1]</code></td><td>Stateless 2-vector seed (TFP "stateless" RNG convention).</td></tr>
+</tbody></table>
+<div class="note"><b>Interaction with the target's CRN seed.</b>
+<span class="tag inf-tag">inference</span> The target log-prob (in the full file) resets a
+<i>global</i> seed each evaluation to make the particle-filter estimate deterministic in
+<code>theta</code>. That is independent of these sampler seeds, which drive the
+<i>momentum</i> draws and MH accept coin. So: momentum/accept randomness varies per step
+(good mixing), while the likelihood surface is fixed per theta (energy conservation).
+The two seed systems serve orthogonal purposes.</div>
+
+<!-- ============ 9 COMPLEXITY ============ -->
+<h2 id="complexity">9 · Complexity &amp; memory</h2>
+<ul>
+<li><b>Time:</b> every path is O(#steps × <code>L</code> × cost(target)). The target is
+the bottleneck (one filter pass per leapfrog step); all sampler bookkeeping is rounding
+error.</li>
+<li><b>Linear algebra:</b> dense mass adds one <code>eigh</code> + <code>inv</code> +
+<code>cholesky</code> on a <code>d×d</code> matrix per window. Here <code>d=3</code> ⇒
+trivial; would matter at high <code>d</code>.</li>
+<li><b>Memory:</b> O(draws × d) for the returned samples + transient per-window/per-chunk
+blocks. The fused vanilla path is most memory-frugal (TFP streams internally); the eager
+progress path holds Python lists of per-step tensors.</li>
+<li><b>Allocation hotspots:</b> a fresh autodiff graph per leapfrog gradient (freed each
+step); a new kernel object per <code>_run_window</code> call (cheap).</li>
+</ul>
+
+<!-- ============ 10 DEBUG ============ -->
+<h2 id="debug">10 · Debugging guide</h2>
+<details open>
+<summary>Symptoms → root cause → fix</summary>
+<table>
+<thead><tr><th>Symptom</th><th>Root cause</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td>Step size pinned at the 0.3 cap, low accept in sampling</td><td>DA wanted to grow past the cap; geometry under-preconditioned.</td><td>Enable dense mass; raise <code>num_burnin</code>; raise <code>L</code>; or relax the cap knowingly.</td></tr>
+<tr><td>Step size collapses to 1e-4</td><td>A window's variance ~0 (stuck chain) before clipping; or over-cautious target accept.</td><td>The eigen/variance clip should prevent the explosion path; check init dispersion; lower <code>target_accept_prob</code>.</td></tr>
+<tr><td><code>cholesky</code>/<code>inv</code> error in dense mode</td><td>Non-PSD window covariance.</td><td>The <code>1e-4·I</code> ridge + eigen-clip guard this; if still failing, increase the ridge or use <code>--diagonal_mass</code>.</td></tr>
+<tr><td><code>AttributeError</code> in a getter/setter or trace</td><td>TFP version changed the results layout.</td><td>Print <code>kernel.bootstrap_results(state)</code>; update the lambdas / drill loop.</td></tr>
+<tr><td>Final step printed differs wildly from in-window eps</td><td>Smoothed <code>log_averaging_step</code> vs noisy last step — expected.</td><td>Trust the smoothed value; only worry if accept is bad.</td></tr>
+<tr><td>Logged run ≠ silent run numerically</td><td>Different seed conventions in the two <code>run_chain</code> paths.</td><td>Expected; fix only if you need exact parity (unify the RNG).</td></tr>
+<tr><td>Acceptance fine in warmup, tanks in sampling</td><td>Mass from W2 not matched to W3's step (the failure the super-window design fixes).</td><td>Ensure W3 keeps mass frozen (it does); enlarge burnin if W3 is too short.</td></tr>
+</tbody></table>
+</details>
+
+<!-- ============ 11 MODIFY ============ -->
+<h2 id="modify">11 · Modification guide</h2>
+<ul>
+<li><b>Add NUTS:</b> add a branch in <code>run_chain</code> using
+<code>tfm.NoUTurnSampler</code> + <code>DualAveragingStepSizeAdaptation</code>; the
+<code>trace_fn</code> drill loop already handles extra layers. Drop <code>L</code>
+(NUTS picks trajectory length itself).</li>
+<li><b>Swap dense estimator:</b> only <code>dense_precision_from_window</code> needs to
+change (e.g. Ledoit–Wolf shrinkage instead of eigen-clip); the momentum factory is
+untouched.</li>
+<li><b>Change window schedule:</b> edit the <code>phase1_n/w1/w2/w3</code> block. Keep
+the invariant: <i>last window must not update mass</i> (it's the term window).</li>
+<li><b>Generalise dimension:</b> nothing here hardcodes <code>d=3</code> (it reads
+<code>state_dim = init.shape[0]</code>) — except the <code>d_vec[0..2]</code> logging
+strings, which assume 3. Fix those to loop for general <code>d</code>.</li>
+<li><b>De-fragilise TFP coupling:</b> wrap the getter/setter/trace plumbing in one
+adapter with a version guard so a TFP bump touches one place.</li>
+<li><b>Unify RNG:</b> make both <code>run_chain</code> paths use the same seed convention
+for reproducible parity.</li>
+</ul>
+
+<!-- ============ 12 TESTING ============ -->
+<h2 id="testing">12 · Testing strategy</h2>
+<table>
+<thead><tr><th>Target</th><th>Unit</th><th>Edge</th><th>Integration</th></tr></thead>
+<tbody>
+<tr><td><code>_build_preconditioned_kernel</code></td><td><code>None</code> ⇒ bare type; int ⇒ DualAveraging type.</td><td>getter/setter round-trip on a bootstrap results tree.</td><td>One <code>sample_chain</code> step runs without error.</td></tr>
+<tr><td><code>_trace_preconditioned</code></td><td>Returns 3-tuple of float32 for both layerings.</td><td>Feed an adapted and a bare results object.</td><td>Trace shapes match <code>num_steps</code>.</td></tr>
+<tr><td><code>_run_window</code></td><td>Adapted returns smoothed step &gt; 0; non-adapt returns input step.</td><td>Missing <code>log_averaging_step</code> ⇒ fallback path.</td><td>final_state == samples[-1].</td></tr>
+<tr><td>mass estimators</td><td>diag: precision = 1/clip(var); dense: precision PSD.</td><td>Singular window cov ⇒ ridge keeps it invertible; var→0 clipped.</td><td>Known-correlated samples ⇒ recovered off-diagonal sign.</td></tr>
+<tr><td><code>run_chain_windowed_proper</code></td><td>eps stays in [1e-4,0.3]; mass frozen in W3 &amp; sampling.</td><td>Tiny burnin floors; chunk math at <code>progress_every=0</code>.</td><td>Recover a Gaussian target's covariance within tolerance.</td></tr>
+<tr><td><code>run_chain</code></td><td>windowed vs vanilla dispatch; default tap=0.65.</td><td>both progress paths produce same shapes.</td><td>Acceptance near target on a Gaussian.</td></tr>
+</tbody></table>
+<p class="small"><b>Truth-free check:</b> on a known Gaussian target, the recovered
+posterior covariance should match the analytic one — validates the mass-matrix direction
+(catches the "wrong direction" v4 bug regardless of parameter scale).</p>
+
+<!-- ============ 13 INTERVIEW ============ -->
+<h2 id="interview">13 · Interview questions</h2>
+<details open>
+<summary>Beginner (8)</summary>
+<ol>
+<li>What does <code>momentum_distribution</code> represent in PreconditionedHMC?</li>
+<li>When does <code>_build_preconditioned_kernel</code> return a bare kernel vs an adapted one?</li>
+<li>What three values does <code>_trace_preconditioned</code> return?</li>
+<li>Why is <code>num_burnin_steps=0</code> inside <code>_run_window</code>?</li>
+<li>What does <code>final_state = samples[-1]</code> achieve across windows?</li>
+<li>What's the default <code>target_accept_prob</code>, and who proposed it?</li>
+<li>What does the dense vs diagonal mass choice trade off?</li>
+<li>Why does sampling run in chunks?</li>
+</ol>
+</details>
+<details>
+<summary>Intermediate (10)</summary>
+<ol>
+<li>Walk the namedtuple path the getter/setter lambdas traverse. Why <code>_replace</code>?</li>
+<li>Why prefer <code>exp(log_averaging_step)</code> over the last <code>new_step_size</code>?</li>
+<li>Why does the windowed sampler reset the step-size adapter each window?</li>
+<li>Explain "the last window is also the term window" and the failure it fixes.</li>
+<li>Why eigen-clip the covariance instead of clipping entries?</li>
+<li>Why is the mass matrix the <i>inverse</i> covariance, not the covariance?</li>
+<li>What's the doc/code drift around <code>target_accept_prob=0.65</code> vs 0.80?</li>
+<li>Why do the two <code>run_chain</code> paths give non-identical numbers?</li>
+<li>How does the seed scheme keep windows/chunks decorrelated yet reproducible?</li>
+<li>What makes the getter/setter/trace lambdas fragile across TFP versions?</li>
+</ol>
+</details>
+<details>
+<summary>Advanced (12)</summary>
+<ol>
+<li>Derive the leapfrog update <code>q += eps·M⁻¹·p</code> and show why M=Σ⁻¹ sphericises the geometry.</li>
+<li>Show how passing variance (not precision) as momentum scale² breaks step scaling, and why similar param scales masked it.</li>
+<li>Prove that concatenating frozen-kernel sampling chunks yields a valid single chain.</li>
+<li>Why can two independent adapters co-amplify to <code>eps→inf</code>? Model the feedback.</li>
+<li>Relate the <code>[0.1,10]</code> eigen-clip to the condition number of the preconditioned Hessian.</li>
+<li>Connect the CRN target seed + per-step momentum seed to energy conservation vs mixing.</li>
+<li>How would you detect divergences in this fixed-L HMC (no NUTS U-turn signal)?</li>
+<li>Where could float32 cholesky/inv of a near-singular window cov bite, and how to harden?</li>
+<li>Derive a principled step-size upper cap from <code>L</code> and target trajectory length.</li>
+<li>What bias does fixing the PF seed introduce, and is the sampler still exact for the true posterior?</li>
+<li>Design an SBC (simulation-based calibration) test for this sampler.</li>
+<li>How would you vectorise the warmup across chains (batched leapfrog) and what breaks in the mass estimator?</li>
+</ol>
+</details>
+
+<!-- ============ 14 WHITEBOARD ============ -->
+<h2 id="whiteboard">14 · Whiteboard</h2>
+<h4>30 seconds</h4>
+<p>"Two HMC samplers behind one <code>run_chain</code> dispatcher. The interesting one is
+a hand-rolled Stan-style windowed warmup: init window, three expanding windows that adapt
+step size (dual-averaging) and re-estimate the mass matrix as the clipped inverse
+posterior covariance, then frozen sampling. The mass = precision convention and a
+'last-window-is-the-term-window' trick are the two non-obvious ideas."</p>
+<h4>2 minutes</h4>
+<p>"<code>_run_window</code> is the atom: it builds a PreconditionedHMC kernel (mass matrix
+= the momentum distribution's covariance), optionally wraps it in dual-averaging, runs
+<code>sample_chain</code>, and returns the <i>smoothed</i> step from
+<code>log_averaging_step</code>. <code>run_chain_windowed_proper</code> chains five of
+these: identity-mass init, then W1/W2/W3 each continuing from the prior state. After
+W1/W2 it estimates precision — diagonal as <code>1/clip(var)</code>, dense via
+eigen-clipping the covariance then inverting — and rebuilds the momentum. W3 freezes the
+mass so its step converges against exactly what sampling uses. A fresh dual-averaging
+kernel per window prevents the runaway step-size co-amplification the monolithic stack
+has. Sampling runs frozen, chunked for heartbeat logging, then concatenated. The
+<code>_build_preconditioned_kernel</code> getter/setter lambdas exist because
+PreconditionedHMC adds a results layer the default adapter accessors don't expect."</p>
+
+<!-- ============ 15 CHEAT ============ -->
+<h2 id="cheat">15 · Cheat sheet</h2>
+<table>
+<tbody>
+<tr><td><code>_build_preconditioned_kernel</code></td><td>PreconditionedHMC; +DualAveraging if adapting. Custom getter/setter for the extra results layer.</td></tr>
+<tr><td><code>_trace_preconditioned</code></td><td>(accepted, logp, step) for adapted &amp; bare kernels via <code>new_step_size</code> probe.</td></tr>
+<tr><td><code>_run_window</code></td><td>Run one block; return smoothed step (<code>exp(log_averaging_step)</code>).</td></tr>
+<tr><td><code>run_chain_windowed_proper</code></td><td>init + W1/W2/W3 + frozen sampling; mass=Σ⁻¹; eigen-clip; per-window adapter reset; W3=term.</td></tr>
+<tr><td><code>run_chain</code></td><td>Dispatch windowed vs vanilla(+DualAveraging); robust drill <code>trace_fn</code>; fused vs eager path.</td></tr>
+</tbody></table>
+<h4>Things most likely to be probed</h4>
+<ul>
+<li>Mass matrix = <b>inverse</b> covariance (and the v4 wrong-direction bug).</li>
+<li>Eigen-clip preserves eigenvectors, bounds eigenvalues.</li>
+<li>Last window doubles as the term window (no separate term phase).</li>
+<li>Per-window adapter reset prevents <code>eps→inf</code> co-amplification.</li>
+<li>Smoothed <code>log_averaging_step</code> &gt; noisy last step.</li>
+<li>The getter/setter lambdas exist because of the extra PreconditionedHMC results layer.</li>
+</ul>
+<h4>Issues worth raising in a review</h4>
+<ul>
+<li><b>Stale comments</b>: "0.80" target and "1:2:4" ratio don't match the code (0.65, ~1:2:5).</li>
+<li><b>TFP version coupling</b>: getter/setter/trace assume a fixed results layout.</li>
+<li><b>RNG non-parity</b> between the two <code>run_chain</code> paths.</li>
+<li><b><code>d_vec[0..2]</code> logging</b> hardcodes <code>d=3</code> even though the rest is dimension-general.</li>
+</ul>
+
+<hr>
+<p class="small">Generated by the <code>code-explainer</code> skill · focused deep-dive on
+the sampler engine · facts marked <span class="tag fact-tag">fact</span>, inferences
+<span class="tag inf-tag">inference</span>. The full-file overview lives at
+<code>../svssm_hmc/svssm_hmc.html</code>.</p>
+
+</main>
+</div>
+</div>
+</body>
+</html>
