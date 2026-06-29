@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>svssm_hmc.py — Implementation Guide</title>
+<style>
+  :root{
+    --bg:#ffffff; --text:#222; --head:#111; --border:#ddd;
+    --accent:#2f6fed; --code:#f5f5f5; --muted:#666; --warn:#b25000;
+    --okbg:#eef6ee; --okbd:#bcd9bc; --infbg:#fff6e6; --infbd:#f0d9a8;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6; font-size:16px;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:0 24px;}
+  .layout{display:flex; gap:32px; align-items:flex-start;}
+  nav.toc{
+    position:sticky; top:0; align-self:flex-start; flex:0 0 250px;
+    max-height:100vh; overflow-y:auto; padding:24px 8px 48px 0;
+    font-size:13.5px; border-right:1px solid var(--border);
+  }
+  nav.toc h2{font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--muted); margin:18px 0 8px;}
+  nav.toc a{display:block; color:var(--text); text-decoration:none;
+    padding:3px 0 3px 10px; border-left:2px solid transparent;}
+  nav.toc a:hover{color:var(--accent); border-left-color:var(--accent);}
+  main{flex:1 1 auto; min-width:0; padding:24px 0 96px;}
+  h1{font-size:30px; color:var(--head); margin:.2em 0 .1em; line-height:1.2;}
+  h2{font-size:24px; color:var(--head); margin:1.8em 0 .5em;
+    padding-bottom:.25em; border-bottom:1px solid var(--border);}
+  h3{font-size:19px; color:var(--head); margin:1.4em 0 .4em;}
+  h4{font-size:16px; color:var(--head); margin:1.1em 0 .3em;
+    text-transform:uppercase; letter-spacing:.03em; font-weight:600;}
+  p,li{color:var(--text);}
+  a{color:var(--accent);}
+  code{font-family:"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+    background:var(--code); padding:1px 5px; border-radius:4px; font-size:.88em;}
+  pre{background:var(--code); border:1px solid var(--border); border-radius:8px;
+    padding:14px 16px; overflow-x:auto; white-space:pre; line-height:1.45;
+    font-size:13px;}
+  pre code{background:none; padding:0; font-size:inherit;}
+  .hl{background:#fff3b0; border-radius:3px; padding:0 2px;}
+  details{border:1px solid var(--border); border-radius:8px; margin:12px 0;
+    padding:0 16px; background:#fcfcfc;}
+  details[open]{padding-bottom:8px;}
+  summary{cursor:pointer; padding:12px 0; font-weight:600; color:var(--head);
+    list-style-position:inside;}
+  summary:hover{color:var(--accent);}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px;}
+  th,td{border:1px solid var(--border); padding:7px 10px; text-align:left;
+    vertical-align:top;}
+  th{background:#f0f2f5;}
+  tbody tr:nth-child(even){background:#fafbfc;}
+  .note{background:var(--infbg); border:1px solid var(--infbd); border-radius:8px;
+    padding:10px 14px; margin:14px 0;}
+  .fact{background:var(--okbg); border:1px solid var(--okbd); border-radius:8px;
+    padding:10px 14px; margin:14px 0;}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; font-size:13px; margin:8px 0 18px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:14px; height:14px; border-radius:3px; display:inline-block;
+    border:1px solid #999;}
+  .tag{display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px;
+    border:1px solid var(--border); background:#f4f4f4; color:var(--muted);
+    margin-left:6px; vertical-align:middle;}
+  .tag.fact-tag{background:var(--okbg); border-color:var(--okbd); color:#2c6b2c;}
+  .tag.inf-tag{background:var(--infbg); border-color:var(--infbd); color:var(--warn);}
+  figure{margin:18px 0; text-align:center;}
+  figure svg{max-width:100%; height:auto; border:1px solid var(--border);
+    border-radius:8px; background:#fff;}
+  figcaption{font-size:13px; color:var(--muted); margin-top:6px;}
+  .kvs{font-size:14px;}
+  .kvs td:first-child{font-family:monospace; white-space:nowrap; width:1%;}
+  hr{border:none; border-top:1px solid var(--border); margin:32px 0;}
+  .small{font-size:13px; color:var(--muted);}
+  @media (max-width:820px){
+    .layout{flex-direction:column;}
+    nav.toc{position:static; max-height:none; flex-basis:auto; width:100%;
+      border-right:none; border-bottom:1px solid var(--border); padding-bottom:12px;}
+    nav.toc a{display:inline-block; margin-right:12px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="layout">
+
+<!-- ================= TABLE OF CONTENTS ================= -->
+<nav class="toc">
+  <h2>Contents</h2>
+  <a href="#summary">1 · Executive Summary</a>
+  <a href="#structure">2 · File Structure</a>
+  <a href="#deps">3 · Dependency Analysis</a>
+  <a href="#exec">4 · Execution Flow</a>
+  <a href="#callgraph">&nbsp;&nbsp;↳ Call graph</a>
+  <a href="#functions">5 · Function Analysis</a>
+  <a href="#f-gen">&nbsp;&nbsp;↳ gen_svssm</a>
+  <a href="#f-target">&nbsp;&nbsp;↳ make_target_log_prob</a>
+  <a href="#f-uncon">&nbsp;&nbsp;↳ unconstrain / constrain</a>
+  <a href="#f-kernel">&nbsp;&nbsp;↳ _build_preconditioned_kernel</a>
+  <a href="#f-trace">&nbsp;&nbsp;↳ _trace_preconditioned</a>
+  <a href="#f-window">&nbsp;&nbsp;↳ _run_window</a>
+  <a href="#f-wproper">&nbsp;&nbsp;↳ run_chain_windowed_proper</a>
+  <a href="#f-runchain">&nbsp;&nbsp;↳ run_chain</a>
+  <a href="#f-rhat">&nbsp;&nbsp;↳ split_rhat / ess_bulk</a>
+  <a href="#f-summary">&nbsp;&nbsp;↳ summarise_posterior</a>
+  <a href="#f-report">&nbsp;&nbsp;↳ _write_reports_and_plots</a>
+  <a href="#f-agg">&nbsp;&nbsp;↳ _aggregate_from_chains</a>
+  <a href="#f-main">&nbsp;&nbsp;↳ main</a>
+  <a href="#datastruct">6 · Data Structures</a>
+  <a href="#algos">7 · Algorithm Walkthrough</a>
+  <a href="#dataflow">8 · Data Flow</a>
+  <a href="#memory">9 · Memory Analysis</a>
+  <a href="#perf">10 · Performance Analysis</a>
+  <a href="#debug">11 · Debugging Guide</a>
+  <a href="#modify">12 · Modification Guide</a>
+  <a href="#testing">13 · Testing Strategy</a>
+  <a href="#interview">14 · Interview Questions</a>
+  <a href="#whiteboard">15 · Whiteboard Walkthrough</a>
+  <a href="#refactor">16 · Refactoring Suggestions</a>
+  <a href="#cheat">17 · Cheat Sheet</a>
+</nav>
+
+<main>
+<h1>svssm_hmc.py</h1>
+<p class="small">Implementation guide for interview preparation &amp; code review · HMC parameter
+recovery for a Stochastic-Volatility State-Space Model (SVSSM).</p>
+
+<div class="legend">
+  <span><span class="swatch" style="background:var(--okbg)"></span> <b>Fact</b> — visible in the code</span>
+  <span><span class="swatch" style="background:var(--infbg)"></span> <b>Inference</b> — reasonable, not provable from this file alone</span>
+</div>
+
+<div class="note">
+<b>Scope boundary.</b> The likelihood class
+<code>DifferentiableLEDHLogLikelihoodSVSSM</code> is imported from
+<code>src.filters.bonus.extra_bonus.differentiable_ledh_svssm</code> and is
+<b>not present in this repository</b>. Everything below treats it as a black box
+<code>ll(mu, phi, sigma_eta_sq, y_obs) → log-likelihood scalar</code>. Statements
+about its internals (particle filter, Sinkhorn OT, LEDH transport) are
+<span class="tag inf-tag">inference</span> from the constructor arguments and the
+module docstring, not from code in this file.
+</div>
+
+<!-- ================= 1. EXECUTIVE SUMMARY ================= -->
+<h2 id="summary">1 · Executive Summary</h2>
+<p><b>Purpose.</b> A self-contained command-line experiment that performs
+<b>Bayesian parameter recovery</b> for a stochastic-volatility model. It (1) simulates
+a time series with <i>known</i> true parameters, (2) runs Hamiltonian Monte Carlo
+(HMC) to draw from the posterior over those parameters given the data, and (3) checks
+whether the posterior actually recovers the truth, emitting numeric diagnostics and
+plots.</p>
+
+<p><b>Primary responsibility.</b> Glue code around a third-party differentiable
+likelihood. The file owns: data generation, the unconstrained reparameterisation +
+prior (the "target log-posterior"), two HMC samplers (vanilla and a hand-rolled
+Stan-style windowed adaptive sampler), convergence diagnostics (R-hat, ESS), and
+reporting (txt/json/npz + matplotlib figures).</p>
+
+<p><b>The statistical model</b> <span class="tag fact-tag">docstring</span> is the
+canonical SV model:</p>
+<pre><code>h_t = mu + phi*(h_{t-1} - mu) + sigma_eta * eta_t      (latent log-volatility, AR(1))
+y_t = exp(h_t / 2) * eps_t                              (observation)
+eta_t, eps_t ~ N(0,1)
+</code></pre>
+<p>Three scalar parameters are inferred: level <code>mu</code>, persistence
+<code>phi ∈ (-1,1)</code>, and volatility-of-volatility <code>sigma_eta &gt; 0</code>.</p>
+
+<p><b>Main components</b> (top to bottom): data generation
+(<code>gen_svssm</code>) → target construction (<code>make_target_log_prob</code>,
+<code>unconstrain</code>, <code>constrain</code>) → samplers
+(<code>run_chain</code> and its windowed engine <code>run_chain_windowed_proper</code>,
+built on the helpers <code>_build_preconditioned_kernel</code>,
+<code>_trace_preconditioned</code>, <code>_run_window</code>) → diagnostics
+(<code>split_rhat</code>, <code>ess_bulk</code>, <code>summarise_posterior</code>) →
+output (<code>_write_reports_and_plots</code>, <code>_aggregate_from_chains</code>) →
+the <code>main</code> driver with three run modes.</p>
+
+<p><b>Execution overview.</b> <code>main()</code> parses CLI args and branches into one
+of three modes: <code>aggregate</code> (load saved chains, only diagnose),
+<code>single-chain</code> (run exactly one chain, save it — for parallel launchers), or
+<code>sequential</code> (run all chains in-process). Normal flow: generate data → build
+the filter object → build the target → run N chains from dispersed starts → stack
+samples to shape <code>(chains, draws, 3)</code> → compute diagnostics → write reports.</p>
+
+<div class="note"><b>Known, deliberate bias</b> <span class="tag fact-tag">docstring</span>:
+the Harvey–Ruiz–Shephard Gaussian quasi-likelihood biases <code>sigma_eta</code> upward
+~30–50%, so a posterior mean of <code>sigma_eta</code> <i>above</i> truth is the
+expected, documented behaviour — not a bug. <code>mu</code> and <code>phi</code> should
+land near truth.</div>
+
+<!-- ================= 2. FILE STRUCTURE ================= -->
+<h2 id="structure">2 · File Structure</h2>
+<p>The file is a flat module: imports, a matplotlib feature-detect block, then ~15
+functions grouped by banner comments. No classes are defined here (the only class,
+the likelihood, is imported).</p>
+
+<table>
+<thead><tr><th>Symbol</th><th>Kind</th><th>Why it exists</th></tr></thead>
+<tbody>
+<tr><td><code>from __future__ import annotations</code></td><td>import</td><td>Postpones evaluation of type hints so annotations like <code>-&gt; tf.Tensor</code> / <code>list[dict]</code> are strings — avoids runtime cost and lets newer syntax run on older Pythons.</td></tr>
+<tr><td><code>argparse, json, time, pathlib.Path</code></td><td>stdlib</td><td>CLI parsing, JSON report, wall-clock timing, filesystem paths.</td></tr>
+<tr><td><code>numpy as np</code></td><td>import</td><td>Host-side array math: diagnostics, clipping step sizes, saving <code>.npz</code>.</td></tr>
+<tr><td><code>tensorflow as tf</code></td><td>import</td><td>Tensors, RNG, the differentiable compute graph the HMC gradients flow through.</td></tr>
+<tr><td><code>tensorflow_probability as tfp</code></td><td>import</td><td>Distributions (priors, momentum), MCMC kernels, ESS/covariance utilities.</td></tr>
+<tr><td><code>DifferentiableLEDHLogLikelihoodSVSSM</code></td><td>import (class)</td><td>The differentiable particle-filter log-likelihood — the HMC target's data term.</td></tr>
+<tr><td><code>tfd = tfp.distributions</code><br><code>tfm = tfp.mcmc</code></td><td>aliases</td><td>Readability shorthands used throughout.</td></tr>
+<tr><td><code>_HAVE_MPL, plt</code></td><td>module globals</td><td>Feature flag: plotting is optional, so the script still runs where matplotlib is absent.</td></tr>
+<tr><td><code>gen_svssm</code></td><td>function</td><td>Simulate observations from known truth.</td></tr>
+<tr><td><code>make_target_log_prob</code></td><td>function (factory)</td><td>Build the closure <code>target_log_prob(theta_raw)</code> = prior + likelihood.</td></tr>
+<tr><td><code>unconstrain / constrain</code></td><td>functions</td><td>Bijections between natural params and the unconstrained sampling space.</td></tr>
+<tr><td><code>_build_preconditioned_kernel</code></td><td>helper</td><td>Construct a (optionally step-size-adapted) PreconditionedHMC kernel.</td></tr>
+<tr><td><code>_trace_preconditioned</code></td><td>helper (trace_fn)</td><td>Extract (accepted, log-prob, step-size) per step for both kernel layerings.</td></tr>
+<tr><td><code>_run_window</code></td><td>helper</td><td>Run one block of HMC steps; return the smoothed final step size.</td></tr>
+<tr><td><code>run_chain_windowed_proper</code></td><td>function</td><td>The Stan-style windowed adaptive sampler (mass-matrix adaptation).</td></tr>
+<tr><td><code>run_chain</code></td><td>function</td><td>Single-chain entry point; dispatches vanilla vs windowed.</td></tr>
+<tr><td><code>split_rhat, ess_bulk</code></td><td>functions</td><td>Convergence / efficiency diagnostics.</td></tr>
+<tr><td><code>summarise_posterior</code></td><td>function</td><td>Per-parameter mean/std/CI/coverage table.</td></tr>
+<tr><td><code>_write_reports_and_plots</code></td><td>helper</td><td>Console table + txt/json/npz + figures.</td></tr>
+<tr><td><code>_aggregate_from_chains</code></td><td>helper</td><td>Reload per-chain <code>.npz</code> files into stacked arrays.</td></tr>
+<tr><td><code>main</code></td><td>entry point</td><td>Argument parsing, mode dispatch, orchestration.</td></tr>
+</tbody>
+</table>
+
+<!-- ================= 3. DEPENDENCY ANALYSIS ================= -->
+<h2 id="deps">3 · Dependency Analysis</h2>
+<table>
+<thead><tr><th>Import</th><th>Library</th><th>Why needed / who uses it</th><th>Alternatives</th></tr></thead>
+<tbody>
+<tr><td><code>argparse</code></td><td>stdlib</td><td>All CLI flags in <code>main</code>.</td><td><code>click</code>, <code>typer</code>, hydra.</td></tr>
+<tr><td><code>json</code></td><td>stdlib</td><td>Machine-readable summary in <code>_write_reports_and_plots</code>.</td><td><code>yaml</code>, <code>toml</code>.</td></tr>
+<tr><td><code>time</code></td><td>stdlib</td><td><code>time.perf_counter()</code> for wall timing / ETA in samplers.</td><td><code>timeit</code>, <code>perf_counter_ns</code>.</td></tr>
+<tr><td><code>pathlib.Path</code></td><td>stdlib</td><td>Build/mkdir output dirs, glob chain files.</td><td><code>os.path</code>.</td></tr>
+<tr><td><code>numpy</code></td><td>NumPy</td><td>Host math: R-hat, ESS bookkeeping, <code>np.clip</code> on step sizes, <code>arctanh/tanh/exp</code> in (un)constrain, <code>savez_compressed</code>.</td><td>Pure TF (but NumPy is friendlier for small host-side stats).</td></tr>
+<tr><td><code>tensorflow</code></td><td>TensorFlow</td><td>Tensors + autodiff graph for the leapfrog gradient; <code>tf.random</code> for data and CRN; <code>tf.linalg</code> (cholesky/eigh/inv) for the dense mass matrix.</td><td>JAX (+ blackjax), PyTorch (+ Pyro/NumPyro).</td></tr>
+<tr><td><code>tensorflow_probability</code></td><td>TFP</td><td><code>tfd</code> priors &amp; momentum distributions; <code>tfm</code> HMC/PreconditionedHMC/DualAveraging/<code>sample_chain</code>/<code>effective_sample_size</code>; <code>tfp.stats.covariance</code>.</td><td>blackjax, NumPyro, Stan (cmdstanpy).</td></tr>
+<tr><td><code>DifferentiableLEDHLogLikelihoodSVSSM</code></td><td>project (absent here)</td><td>The data term. Called once per leapfrog gradient as <code>ll(mu, phi, sigma_eta_sq, y_obs)</code>.</td><td>Any differentiable SV log-lik: KSC mixture, bootstrap PF w/ reparam, Kalman on a linearised model.</td></tr>
+<tr><td><code>matplotlib</code></td><td>Matplotlib (optional)</td><td>Trace + marginal plots. Guarded by <code>try/except ImportError</code> and the <code>"Agg"</code> backend (headless).</td><td>plotly, seaborn, or skip plots entirely.</td></tr>
+</tbody>
+</table>
+
+<div class="note"><b>Why <code>matplotlib.use("Agg")</code> before <code>import pyplot</code>?</b>
+<span class="tag fact-tag">code</span> Selecting the non-interactive Agg backend up front
+makes plotting work on headless machines (CI, servers) with no display. It must run
+before <code>pyplot</code> is imported, which is exactly the ordering in the file.</div>
+
+<!-- ================= 4. EXECUTION FLOW ================= -->
+<h2 id="exec">4 · Execution Flow</h2>
+<p><b>Entry point:</b> <code>if __name__ == "__main__": raise SystemExit(main())</code>.
+Using <code>raise SystemExit(main())</code> turns <code>main()</code>'s integer return
+into the process exit code (0 = success) — the conventional CLI pattern.</p>
+
+<ol>
+<li><b>Parse args</b> → make <code>out_dir</code> and <code>out_dir/chains</code>.</li>
+<li><b>Print config banner</b> (TF/TFP versions, truth, kernel label, mode).</li>
+<li><b>Mode branch #1 — aggregate:</b> if <code>--aggregate</code>, call
+<code>_aggregate_from_chains</code>, summarise, write reports, <code>return</code>
+(no sampling at all).</li>
+<li><b>Generate data:</b> <code>y_obs = gen_svssm(...)</code>.</li>
+<li><b>Build filter:</b> instantiate the likelihood object <code>ll</code>.</li>
+<li><b>Dispersed inits:</b> <code>truth_raw</code> via <code>unconstrain</code>, then add
+Gaussian jitter (<code>dispersion</code>) per chain.</li>
+<li><b>Build target:</b> <code>target_log_prob_fn = make_target_log_prob(...)</code>.</li>
+<li><b>Mode branch #2 — single chain:</b> if <code>--chain_id</code> set, run that one
+chain, save <code>chains/chain_{id}.npz</code>, <code>return</code>.</li>
+<li><b>Mode branch #3 — sequential:</b> loop over chains, each calling
+<code>run_chain</code>; collect results.</li>
+<li><b>Stack</b> to <code>(chains, draws, 3)</code>; <code>constrain</code> to natural
+space.</li>
+<li><b>Diagnose</b> via <code>summarise_posterior</code>.</li>
+<li><b>Report</b> via <code>_write_reports_and_plots</code>; return 0.</li>
+</ol>
+
+<figure id="execflow">
+<svg viewBox="0 0 980 470" role="img" aria-label="Execution flow diagram">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#555"/>
+    </marker>
+  </defs>
+  <style>
+    .box{fill:#f7f9ff;stroke:#2f6fed;stroke-width:1.2;}
+    .dec{fill:#fff6e6;stroke:#b25000;stroke-width:1.2;}
+    .term{fill:#eef6ee;stroke:#3a8a3a;stroke-width:1.2;}
+    .t{font:13px Inter,Arial,sans-serif;fill:#222;}
+    .tb{font:13px Inter,Arial,sans-serif;fill:#222;font-weight:600;}
+    .e{stroke:#555;stroke-width:1.2;fill:none;marker-end:url(#ar);}
+    .el{font:11px Inter,Arial,sans-serif;fill:#666;}
+  </style>
+  <rect class="term" x="380" y="14" width="200" height="34" rx="8"/>
+  <text class="tb" x="480" y="35" text-anchor="middle">main(): parse args, mkdir</text>
+
+  <rect class="dec" x="380" y="70" width="200" height="40" rx="8"/>
+  <text class="t" x="480" y="95" text-anchor="middle">--aggregate ?</text>
+  <line class="e" x1="480" y1="48" x2="480" y2="70"/>
+
+  <rect class="box" x="650" y="72" width="300" height="36" rx="8"/>
+  <text class="t" x="800" y="95" text-anchor="middle">load chains/chain_*.npz → diagnose → report</text>
+  <line class="e" x1="580" y1="90" x2="650" y2="90"/>
+  <text class="el" x="615" y="84">yes</text>
+
+  <rect class="box" x="380" y="130" width="200" height="34" rx="8"/>
+  <text class="t" x="480" y="151" text-anchor="middle">gen_svssm → y_obs</text>
+  <line class="e" x1="480" y1="110" x2="480" y2="130"/>
+  <text class="el" x="488" y="124">no</text>
+
+  <rect class="box" x="380" y="178" width="200" height="34" rx="8"/>
+  <text class="t" x="480" y="199" text-anchor="middle">build ll (filter)</text>
+  <line class="e" x1="480" y1="164" x2="480" y2="178"/>
+
+  <rect class="box" x="380" y="226" width="200" height="34" rx="8"/>
+  <text class="t" x="480" y="247" text-anchor="middle">dispersed inits + target</text>
+  <line class="e" x1="480" y1="212" x2="480" y2="226"/>
+
+  <rect class="dec" x="380" y="274" width="200" height="40" rx="8"/>
+  <text class="t" x="480" y="299" text-anchor="middle">--chain_id set ?</text>
+  <line class="e" x1="480" y1="260" x2="480" y2="274"/>
+
+  <rect class="box" x="650" y="276" width="300" height="36" rx="8"/>
+  <text class="t" x="800" y="299" text-anchor="middle">run ONE chain → save chain_{id}.npz → exit</text>
+  <line class="e" x1="580" y1="294" x2="650" y2="294"/>
+  <text class="el" x="615" y="288">yes</text>
+
+  <rect class="box" x="350" y="334" width="260" height="34" rx="8"/>
+  <text class="t" x="480" y="355" text-anchor="middle">for c in chains: run_chain(...)</text>
+  <line class="e" x1="480" y1="314" x2="480" y2="334"/>
+  <text class="el" x="488" y="328">no</text>
+
+  <rect class="box" x="350" y="382" width="260" height="34" rx="8"/>
+  <text class="t" x="480" y="403" text-anchor="middle">stack → constrain → summarise_posterior</text>
+  <line class="e" x1="480" y1="368" x2="480" y2="382"/>
+
+  <rect class="term" x="350" y="426" width="260" height="34" rx="8"/>
+  <text class="tb" x="480" y="447" text-anchor="middle">_write_reports_and_plots → exit 0</text>
+  <line class="e" x1="480" y1="416" x2="480" y2="426"/>
+</svg>
+<figcaption>Execution flow with the three mode branches (orange = decision).</figcaption>
+</figure>
+
+<h3 id="callgraph">Call graph</h3>
+<figure>
+<svg viewBox="0 0 980 430" role="img" aria-label="Call graph">
+  <defs>
+    <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#888"/>
+    </marker>
+  </defs>
+  <style>
+    .n{fill:#f7f9ff;stroke:#2f6fed;stroke-width:1.1;}
+    .nx{fill:#f3f3f3;stroke:#999;stroke-width:1.1;}
+    .nt{font:12px Inter,Arial,sans-serif;fill:#222;}
+    .ed{stroke:#aaa;stroke-width:1;fill:none;marker-end:url(#ar2);}
+  </style>
+  <!-- main -->
+  <rect class="n" x="20" y="190" width="90" height="30" rx="6"/><text class="nt" x="65" y="210" text-anchor="middle">main</text>
+  <!-- level 2 -->
+  <rect class="n" x="180" y="20" width="150" height="28" rx="6"/><text class="nt" x="255" y="39" text-anchor="middle">gen_svssm</text>
+  <rect class="n" x="180" y="62" width="170" height="28" rx="6"/><text class="nt" x="265" y="81" text-anchor="middle">make_target_log_prob</text>
+  <rect class="n" x="180" y="104" width="150" height="28" rx="6"/><text class="nt" x="255" y="123" text-anchor="middle">unconstrain/constrain</text>
+  <rect class="n" x="180" y="190" width="120" height="30" rx="6"/><text class="nt" x="240" y="210" text-anchor="middle">run_chain</text>
+  <rect class="n" x="180" y="300" width="180" height="28" rx="6"/><text class="nt" x="270" y="319" text-anchor="middle">summarise_posterior</text>
+  <rect class="n" x="180" y="342" width="190" height="28" rx="6"/><text class="nt" x="275" y="361" text-anchor="middle">_write_reports_and_plots</text>
+  <rect class="n" x="180" y="384" width="190" height="28" rx="6"/><text class="nt" x="275" y="403" text-anchor="middle">_aggregate_from_chains</text>
+
+  <line class="ed" x1="110" y1="198" x2="180" y2="40"/>
+  <line class="ed" x1="110" y1="198" x2="180" y2="76"/>
+  <line class="ed" x1="110" y1="200" x2="180" y2="118"/>
+  <line class="ed" x1="110" y1="205" x2="180" y2="205"/>
+  <line class="ed" x1="110" y1="208" x2="180" y2="314"/>
+  <line class="ed" x1="110" y1="210" x2="180" y2="356"/>
+  <line class="ed" x1="110" y1="214" x2="180" y2="398"/>
+
+  <!-- run_chain -> windowed + vanilla -->
+  <rect class="n" x="430" y="150" width="220" height="30" rx="6"/><text class="nt" x="540" y="170" text-anchor="middle">run_chain_windowed_proper</text>
+  <rect class="nx" x="430" y="230" width="220" height="28" rx="6"/><text class="nt" x="540" y="249" text-anchor="middle">tfm.HMC + DualAveraging</text>
+  <line class="ed" x1="300" y1="200" x2="430" y2="168"/>
+  <line class="ed" x1="300" y1="208" x2="430" y2="244"/>
+
+  <!-- windowed -> helpers -->
+  <rect class="n" x="720" y="40" width="150" height="28" rx="6"/><text class="nt" x="795" y="59" text-anchor="middle">_run_window</text>
+  <rect class="n" x="720" y="86" width="200" height="28" rx="6"/><text class="nt" x="820" y="105" text-anchor="middle">make_momentum_diag/dense</text>
+  <rect class="n" x="720" y="132" width="220" height="28" rx="6"/><text class="nt" x="830" y="151" text-anchor="middle">diag/dense_precision_from_window</text>
+  <line class="ed" x1="650" y1="160" x2="720" y2="60"/>
+  <line class="ed" x1="650" y1="163" x2="720" y2="100"/>
+  <line class="ed" x1="650" y1="166" x2="720" y2="146"/>
+
+  <!-- _run_window -> kernel/trace -->
+  <rect class="n" x="720" y="178" width="230" height="28" rx="6"/><text class="nt" x="835" y="197" text-anchor="middle">_build_preconditioned_kernel</text>
+  <rect class="n" x="720" y="220" width="230" height="28" rx="6"/><text class="nt" x="835" y="239" text-anchor="middle">_trace_preconditioned</text>
+  <line class="ed" x1="870" y1="54" x2="835" y2="178"/>
+  <line class="ed" x1="870" y1="58" x2="835" y2="222"/>
+
+  <!-- summarise -> diagnostics -->
+  <rect class="n" x="430" y="300" width="120" height="28" rx="6"/><text class="nt" x="490" y="319" text-anchor="middle">split_rhat</text>
+  <rect class="n" x="430" y="342" width="120" height="28" rx="6"/><text class="nt" x="490" y="361" text-anchor="middle">ess_bulk</text>
+  <line class="ed" x1="360" y1="314" x2="430" y2="314"/>
+  <line class="ed" x1="360" y1="320" x2="430" y2="356"/>
+
+  <!-- target closure -> ll -->
+  <rect class="nx" x="430" y="62" width="150" height="28" rx="6"/><text class="nt" x="505" y="81" text-anchor="middle">ll(...)  [imported]</text>
+  <line class="ed" x1="350" y1="76" x2="430" y2="76"/>
+</svg>
+<figcaption>Static call graph. Gray nodes are external/imported (vanilla-HMC path, the
+likelihood). Helpers fan out from <code>run_chain_windowed_proper → _run_window</code>.</figcaption>
+</figure>
+
+<!-- ================= 5. FUNCTION ANALYSIS ================= -->
+<h2 id="functions">5 · Function Analysis</h2>
+<p>Each function below has: signature, return, step-by-step walkthrough, variable
+tracking, call relationships, complexity, and edge cases. Large ones are collapsed.</p>
+
+<!-- gen_svssm -->
+<h3 id="f-gen">gen_svssm(T, mu, phi, sigma_eta, seed) → tf.Tensor</h3>
+<pre><code>def gen_svssm(T, mu, phi, sigma_eta, seed):
+    tf.random.set_seed(seed)
+    sigma_eta_t = tf.constant(sigma_eta, tf.float32)
+    h = tf.constant(float(mu), tf.float32)        # h_0 initialised AT mu
+    ys = []
+    for _ in range(T):
+        h = mu + phi * (h - mu) + sigma_eta_t * tf.random.normal([])
+        ys.append(tf.exp(h / 2.0) * tf.random.normal([]))
+    return tf.stack(ys)</code></pre>
+<h4>Signature</h4>
+<table class="kvs"><tbody>
+<tr><td>T</td><td>int — number of time steps to simulate.</td></tr>
+<tr><td>mu</td><td>float — long-run mean of log-volatility.</td></tr>
+<tr><td>phi</td><td>float — AR(1) persistence, expected in (-1,1).</td></tr>
+<tr><td>sigma_eta</td><td>float — std of the volatility innovation (note: NOT the variance).</td></tr>
+<tr><td>seed</td><td>int — global TF RNG seed for reproducibility.</td></tr>
+</tbody></table>
+<h4>Return value</h4>
+<p>A 1-D <code>tf.float32</code> tensor of shape <code>(T,)</code> — the observed series
+<code>y_t</code>. <span class="tag fact-tag">code</span></p>
+<h4>Step-by-step</h4>
+<ul>
+<li><code>tf.random.set_seed(seed)</code> — fix the global RNG so the series is
+reproducible.</li>
+<li><code>h = mu</code> — initialise the latent state <i>at the mean</i> (not drawn from
+the stationary distribution). <span class="tag inf-tag">inference</span>: this
+introduces a short burn-in transient; for the AR(1) here it's mild because the chain
+starts at its mean.</li>
+<li>The loop applies the AR(1) recursion <code>h ← mu + phi*(h−mu) + sigma_eta*η</code>
+and emits <code>y = exp(h/2)*ε</code>. Each iteration draws <i>two</i> independent
+standard normals (η then ε).</li>
+<li><code>tf.stack(ys)</code> — concatenate the <code>T</code> scalars into one tensor.</li>
+</ul>
+<h4>Variable tracking</h4>
+<p><code>h</code> evolves in-place across iterations (the only carried state).
+<code>sigma_eta_t</code> is a constant; <code>mu</code>/<code>phi</code> are Python
+floats promoted into the graph each step.</p>
+<h4>Complexity</h4>
+<p>Time <b>O(T)</b> with a Python-level loop (eager, one op-set per step). Memory
+<b>O(T)</b> for the list + stacked tensor.</p>
+<h4>Edge cases / bugs</h4>
+<ul>
+<li><b>|phi| ≥ 1</b>: non-stationary — <code>h</code> can drift unboundedly and
+<code>exp(h/2)</code> overflow to <code>inf</code>. Not guarded.</li>
+<li><b>sigma_eta &lt; 0</b>: accepted silently; flips the innovation sign (harmless for a
+symmetric normal, but conceptually invalid).</li>
+<li><b>Python loop in eager mode</b> is slow for large T; fine for the default
+T=50/100. A <code>tf.scan</code> would vectorise it.</li>
+<li><b>Two RNG draws per step</b> share the same seeded stream — correct, but means
+changing <code>T</code> changes the entire downstream draw sequence.</li>
+</ul>
+
+<!-- make_target_log_prob -->
+<h3 id="f-target">make_target_log_prob(...) → callable</h3>
+<details open>
+<summary>Full walkthrough (the statistical core of the file)</summary>
+<p>This <b>factory</b> captures the likelihood object, the data, priors and a
+common-random-number (CRN) seed, then returns a closure
+<code>target_log_prob(theta_raw)</code> that HMC differentiates and samples.</p>
+
+<h4>Parameterisation</h4>
+<p><code>theta_raw = [mu, phi_raw, log_sigma_eta_sq]</code> lives in unconstrained
+ℝ³. Inside the closure:</p>
+<pre><code>phi          = tanh(phi_raw)            # maps ℝ → (-1, 1): enforces stationarity
+sigma_eta_sq = exp(log_sigma_eta_sq)    # maps ℝ → (0, ∞): enforces positivity</code></pre>
+<p><b>Why unconstrained?</b> HMC simulates Hamiltonian dynamics in ℝ^d; hard bounds
+would require reflecting/rejecting trajectories. Reparameterising to ℝ removes the
+boundaries so leapfrog runs freely. <span class="tag inf-tag">inference (standard MCMC practice)</span></p>
+
+<h4>Priors</h4>
+<p>Three independent Gaussians, built once outside the closure (so they aren't
+re-instantiated every gradient eval):</p>
+<table class="kvs"><tbody>
+<tr><td>prior_mu</td><td>N(loc, scale²) on <code>mu</code> directly.</td></tr>
+<tr><td>prior_phi_raw</td><td>N on <code>phi_raw</code> (the <i>pre-tanh</i> value).</td></tr>
+<tr><td>prior_log_sigma_eta_sq</td><td>N on <code>log_sigma_eta_sq</code>.</td></tr>
+</tbody></table>
+<div class="note"><b>Subtle point.</b> Priors are placed on the <i>unconstrained</i>
+coordinates, not on <code>phi</code>/<code>sigma_eta_sq</code>. The code does
+<b>not</b> add a Jacobian (log-derivative) term for the tanh/exp transforms. That is a
+<b>deliberate modelling choice</b>: the prior is <i>defined</i> in unconstrained space,
+so no change-of-variables correction is needed. <span class="tag inf-tag">inference</span>
+If you instead wanted a specific prior on <code>phi</code> itself, you would need the
+<code>log|d phi/d phi_raw|</code> term. This is a classic interview trap (see
+<a href="#interview">§14</a>).</div>
+
+<h4>The closure body</h4>
+<pre><code>def target_log_prob(theta_raw):
+    tf.random.set_seed(int(crn_seed))                 # (1) CRN fix
+    mu = theta_raw[0]; phi_raw = theta_raw[1]; log_sigma_eta_sq = theta_raw[2]
+    phi = tf.tanh(phi_raw); sigma_eta_sq = tf.exp(log_sigma_eta_sq)
+    log_prior = prior_mu.log_prob(mu) + prior_phi_raw.log_prob(phi_raw) \
+                + prior_log_sigma_eta_sq.log_prob(log_sigma_eta_sq)
+    if no_likelihood:
+        return log_prior                              # (2) prior-only baseline
+    log_lik = ll(mu, phi, sigma_eta_sq, y_obs)
+    log_lik = tf.cast(tf.math.real(log_lik), tf.float32)   # (3) drop imag part
+    log_lik = tf.where(tf.math.is_finite(log_lik), log_lik, -inf)  # (4) -inf guard
+    return log_prior + log_lik</code></pre>
+<ol>
+<li><b>CRN seed fix</b> <span class="tag fact-tag">comment</span>: resetting the global
+seed every evaluation makes the particle-filter estimate a deterministic function of
+<code>theta</code> <i>within a chain</i>. HMC's leapfrog assumes a smooth, fixed
+potential energy surface; if the likelihood's Monte-Carlo noise changed every call,
+energy wouldn't be conserved and acceptance would collapse. Fixing the seed restores
+that.</li>
+<li><b>no_likelihood</b>: a prior-only mode used to measure where the chain settles
+under the prior alone — a sanity check that the data actually moves the posterior.</li>
+<li><b><code>tf.math.real</code></b>: the likelihood may return a complex dtype
+<span class="tag inf-tag">inference</span> (e.g. from a spectral/eigen step inside the
+filter); only the real part is the log-likelihood.</li>
+<li><b><code>-inf</code> not <code>-1e6</code></b> <span class="tag fact-tag">comment</span>:
+the most important numerical detail. A finite sentinel like <code>-1e6</code> makes the
+Metropolis ratio between two <i>equally bad</i> states ≈1 (always accept), which tricks
+dual-averaging into thinking huge step sizes are safe. <code>-inf</code> forces a clean
+MH rejection.</li>
+</ol>
+<h4>Complexity</h4>
+<p>Per call: O(prior) trivial + <b>one full filter pass</b> (the dominant cost, hidden
+in <code>ll</code>). HMC calls this <code>~num_leapfrog</code> times per step.</p>
+<h4>Edge cases</h4>
+<ul>
+<li>If <code>ll</code> returns NaN/Inf for extreme params, (4) catches it → proposal
+rejected.</li>
+<li><code>theta_raw</code> must be a length-3 tensor; indexing <code>[0..2]</code>
+assumes that shape.</li>
+<li>Resetting the <i>global</i> seed inside the target affects any other TF RNG in the
+process — fine here because nothing else draws during a gradient eval, but a footgun if
+reused elsewhere.</li>
+</ul>
+</details>
+
+<!-- unconstrain / constrain -->
+<h3 id="f-uncon">unconstrain(mu, phi, sigma_eta_sq) &amp; constrain(theta_raw)</h3>
+<pre><code>unconstrain: [mu, arctanh(clip(phi, ±0.9999)), log(max(sigma_eta_sq, 1e-8))]
+constrain:   [mu, tanh(th[...,1]), exp(th[...,2])]   # vectorised over leading dims</code></pre>
+<ul>
+<li>These are the host-side (NumPy) inverses of the in-graph transforms. <code>unconstrain</code> maps a
+single natural triple → <code>theta_raw</code> for initial states; <code>constrain</code>
+maps sample <i>arrays</i> back to natural space using <code>th[..., k]</code> so it works
+on shape <code>(chains, draws, 3)</code> in one call.</li>
+<li><b>Defensive clipping</b>: <code>arctanh(±1)=±∞</code>, so <code>phi</code> is clipped
+to <code>±0.9999</code>; <code>sigma_eta_sq</code> is floored at <code>1e-8</code> before
+<code>log</code> to avoid <code>-inf</code>.</li>
+<li><b>Naming gotcha</b>: <code>unconstrain</code> takes <code>sigma_eta_sq</code> (the
+<i>variance</i>), and callers pass <code>args.sigma_eta ** 2</code>. Mixing up
+sigma vs sigma² here is a common bug — note <code>main</code> passes the square
+correctly.</li>
+</ul>
+<p>Complexity O(1) / O(n) elementwise. Edge case: <code>constrain</code> assumes the
+last axis has length ≥3.</p>
+
+<!-- _build_preconditioned_kernel -->
+<h3 id="f-kernel">_build_preconditioned_kernel(...)</h3>
+<details>
+<summary>Kernel construction &amp; the DualAveraging getter/setter plumbing</summary>
+<p>Builds a <code>PreconditionedHamiltonianMonteCarlo</code> inner kernel; if
+<code>num_adaptation_steps</code> is <code>None</code> returns it bare (sampling phase),
+else wraps it in <code>DualAveragingStepSizeAdaptation</code>.</p>
+<pre><code>inner = tfp.experimental.mcmc.PreconditionedHamiltonianMonteCarlo(
+    target_log_prob_fn, step_size, num_leapfrog_steps, momentum_distribution=momentum_dist)
+if num_adaptation_steps is None: return inner
+return tfm.DualAveragingStepSizeAdaptation(
+    inner_kernel=inner, num_adaptation_steps=..., target_accept_prob=...,
+    step_size_setter_fn = lambda kr, ss: kr._replace(accepted_results=kr.accepted_results._replace(step_size=ss)),
+    step_size_getter_fn = lambda kr: kr.accepted_results.step_size,
+    log_accept_prob_getter_fn = lambda kr: kr.log_accept_ratio)</code></pre>
+<p><b>Why the custom getter/setter lambdas?</b> <code>DualAveraging</code> needs to
+read and write the step size buried inside the kernel-results <i>namedtuple</i> tree.
+The default accessors assume a particular layering; because the inner kernel is
+<i>Preconditioned</i> HMC (an extra wrapper), the code provides explicit functions that
+walk the documented structure:</p>
+<pre><code>DualAverage.results
+ └ inner_results = MetropolisHastingsKernelResults
+    ├ accepted_results = UncalibratedPreconditionedHMC.results  → .step_size
+    └ log_accept_ratio</code></pre>
+<p><b>The momentum distribution = the mass matrix.</b> Preconditioning is supplied via
+<code>momentum_distribution</code>; this is how the windowed sampler injects an adapted
+mass matrix (see <a href="#f-wproper">below</a> and <a href="#algos">§7</a>).</p>
+<p>Complexity O(1) construction. Edge case: if the kernel-results structure changes
+across TFP versions, the lambdas break — a version-coupling risk.</p>
+</details>
+
+<!-- _trace_preconditioned -->
+<h3 id="f-trace">_trace_preconditioned(_, kr)</h3>
+<pre><code>if hasattr(kr, "new_step_size"):     # adapted: DualAveraging on top
+    step = kr.new_step_size; mh = kr.inner_results
+else:                                # bare PreconditionedHMC (sampling phase)
+    mh = kr; step = mh.accepted_results.step_size
+return mh.is_accepted, cast(mh.accepted_results.target_log_prob), cast(step)</code></pre>
+<p>A unified <code>trace_fn</code> that returns <code>(accepted, log_prob, step_size)</code>
+for <i>both</i> kernel layerings. The <code>hasattr(kr, "new_step_size")</code> probe
+distinguishes the adapted wrapper (which exposes <code>new_step_size</code>) from the
+bare kernel. This duck-typing lets <code>_run_window</code> use one trace function in
+both warmup and sampling phases. O(1). Edge case: relies on the attribute name
+<code>new_step_size</code> staying stable in TFP.</p>
+
+<!-- _run_window -->
+<h3 id="f-window">_run_window(...) → (final_state, samples, acc, lp, step_arr, final_step)</h3>
+<details>
+<summary>One block of HMC; the smoothed-step-size logic</summary>
+<p>Runs <code>num_steps</code> steps of (optionally adapted) PreconditionedHMC via
+<code>tfm.sample_chain</code>, with <code>num_burnin_steps=0</code> (warmup is managed
+externally by the windowing logic, not by <code>sample_chain</code>).</p>
+<p><b>Adapted branch</b> (<code>adapt_step_size=True</code>): passes
+<code>return_final_kernel_results=True</code> and then reads the <b>smoothed</b> step
+size:</p>
+<pre><code>arr = np.asarray(tf.exp(final_kr.log_averaging_step).numpy())
+smoothed = float(arr.flatten()[0]) if arr.size > 0 else 0.0
+final_step = smoothed if smoothed > 0 else float(step_arr[-1].numpy().flatten()[-1])</code></pre>
+<p><b>Why the smoothed estimate?</b> <span class="tag fact-tag">comment</span> Nesterov
+dual-averaging maintains a running average <code>log_averaging_step</code> (what Stan
+reports). It is far less noisy than the last raw <code>new_step_size</code>, especially
+in short windows where adaptation hasn't fully converged. The <code>try/except</code>
+falls back to the last traced step if the attribute is missing/zero.</p>
+<p><b>Non-adapted branch</b>: step size is frozen, so it just returns the input
+<code>step_size</code> without inspecting the trace.</p>
+<p>Variable tracking: <code>final_state = samples[-1]</code> threads the chain forward
+to the next window. Complexity: O(num_steps × leapfrog × cost(ll)). Edge cases: the
+nested <code>.numpy().flatten()</code> indexing guards against scalar-vs-array shape
+ambiguity in the traced step array.</p>
+</details>
+
+<!-- run_chain_windowed_proper -->
+<h3 id="f-wproper">run_chain_windowed_proper(...)</h3>
+<details>
+<summary>Stan-style windowed adaptive HMC — the most intricate function</summary>
+<p>Implements warmup as a sequence of expanding windows that each (a) adapt the step
+size and (b) re-estimate the mass matrix from that window's own samples, then a frozen
+sampling phase. This is a hand-rolled version of Stan/TFP's
+<code>DiagonalMassMatrixAdaptation</code>, written to avoid a specific instability.</p>
+
+<h4>Window budget</h4>
+<pre><code>phase1_n     = max(B*0.10, 5)          # init window: identity mass, step-size only
+phase2_total = max(B - phase1_n, 18)
+w1 = max(phase2_total//8, 4)
+w2 = max(phase2_total//4, 6)
+w3 = max(phase2_total - w1 - w2, 8)    # "super-window": last mass est + term role</code></pre>
+<p><b>Key design</b> <span class="tag fact-tag">comment</span>: there is <i>no</i>
+separate terminal phase. The last expanding window (<code>w3</code>) does NOT update the
+mass matrix at its end; instead it doubles as the "term" window where the step size
+converges against the <i>final</i> mass matrix that sampling will use. Earlier versions
+had a short separate term phase that failed: a fresh mass matrix at term start forced
+the step to re-equilibrate with too few steps left.</p>
+
+<h4>Mass-matrix convention (the crux)</h4>
+<div class="note"><b>Mass matrix M := posterior_cov⁻¹.</b> The
+<code>momentum_distribution</code> covariance is set to <b>M = precision</b> (inverse
+posterior covariance), <i>not</i> the covariance itself. The leapfrog position update
+<code>q += eps·M⁻¹·p</code> then scales by the posterior covariance, so high-variance
+directions take proportionally larger steps. The comment explicitly flags a prior bug
+("v4 passed sample variance directly as momentum scale² — wrong direction") that was
+masked only because all three SVSSM params happen to have similar posterior scale.
+<span class="tag fact-tag">comment</span></div>
+
+<h4>Two mass modes</h4>
+<ul>
+<li><b>dense (default)</b>: <code>MultivariateNormalTriL</code> momentum with full
+inverse-covariance — captures off-diagonal correlation like the
+(<code>phi</code>, <code>sigma_eta²</code>) ridge (~−0.79 at T=100).</li>
+<li><b>diagonal</b>: <code>Independent(Normal)</code> per-dim only — cheaper, cannot fix
+correlations.</li>
+</ul>
+
+<h4>Precision estimators (with clipping)</h4>
+<pre><code>diag:  var = clip(reduce_variance(win), 0.1, 10);  precision = 1/var
+dense: cov = covariance(win) + 1e-4·I; symmetrise; eigh → clip eigenvalues to [0.1,10];
+       rebuild cov; precision = inv(cov_clip); symmetrise</code></pre>
+<p><b>Why clip?</b> <span class="tag fact-tag">comment</span> Identity mass ≡ var 1, so
+<code>[0.1, 10]</code> allows a 10× rescale either way. It prevents the
+"briefly-stuck-chain" pathology where a window's variance → 0 makes precision (and
+trajectory length) explode. The dense version clips <i>eigenvalues</i> — bounding
+per-direction scale while preserving the eigenvectors (the correlation structure).</p>
+
+<h4>Flow of the function</h4>
+<ol>
+<li>Init momentum = identity mass (no adaptation yet).</li>
+<li><b>Init window</b>: <code>_run_window(adapt=True)</code>; clip <code>eps</code> to
+<code>[1e-4, 0.3]</code>.</li>
+<li><b>For each expanding window</b>: run with current mass + step-size adapt; clip
+<code>eps</code>; if not the last window, estimate precision from the window's
+post-burn samples (<code>skip = 25%</code>) and rebuild the momentum distribution.</li>
+<li><b>Sampling</b>: no adaptation, frozen step + frozen mass, chunked into
+<code>progress_every</code> blocks for heartbeat logging + ETA.</li>
+<li>Concatenate chunks; synthesize a constant <code>step_arr</code> (since step is
+frozen); return NumPy arrays.</li>
+</ol>
+<div class="note"><b>Why reset the step-size adapter each window?</b>
+<span class="tag fact-tag">comment</span> The monolithic
+<code>DualAverage[DiagonalMass[PHMC]]</code> stack updates two adapters
+<i>independently every step</i>; they can co-amplify and drive the step size to
+<code>inf</code> on bad geometry. Resetting DA at each window boundary breaks that
+feedback loop — the central reason this function exists.</div>
+
+<h4>Step-size cap rationale</h4>
+<p>Caps to <code>[1e-4, 0.3]</code> (not <code>0.5</code>): the comment records that an
+<code>eps=0.5</code> + frozen-mass sampling gave &lt;5% acceptance on 2/4 chains in a
+72-min laptop test; <code>0.3</code> cap keeps all chains productive.</p>
+
+<h4>Complexity</h4>
+<p>O(total_steps × leapfrog × cost(ll)) dominated by the filter. The dense path adds a
+3×3 <code>eigh</code>/<code>inv</code> per window — negligible. Memory O(draws × 3) for
+stored samples plus per-window sample blocks.</p>
+
+<h4>Edge cases / bugs</h4>
+<ul>
+<li>Tiny <code>num_burnin</code>: the <code>max(...)</code> floors keep windows ≥4–8
+steps, but adaptation quality degrades.</li>
+<li>Non-PSD window covariance → the <code>1e-4·I</code> ridge + eigen-clip keep
+<code>cholesky/inv</code> stable.</li>
+<li>The synthesized constant <code>step_arr</code> means downstream "final step size"
+reflects the frozen value, not per-step values (intentional).</li>
+<li><code>skip = max(int(wsize*0.25), 1)</code> can leave very few samples for the
+precision estimate in small windows → noisier mass matrix.</li>
+</ul>
+</details>
+
+<!-- run_chain -->
+<h3 id="f-runchain">run_chain(...)</h3>
+<details>
+<summary>Dispatcher: vanilla HMC + dual-averaging, or the windowed engine</summary>
+<p>If <code>use_windowed_adaptive</code>, it forwards to
+<code>run_chain_windowed_proper</code> (default <code>target_accept_prob=0.65</code>).
+Otherwise it builds the <b>vanilla</b> path:</p>
+<pre><code>kernel = tfm.HamiltonianMonteCarlo(target_log_prob_fn, step_size, num_leapfrog_steps)
+kernel = tfm.DualAveragingStepSizeAdaptation(kernel, num_adaptation_steps=num_burnin,
+                                             target_accept_prob=0.65)</code></pre>
+<p><b>Identity mass</b> (no preconditioning) in this path — appropriate when the
+posterior geometry is roughly spherical. <code>target_accept=0.65</code> is Hoffman &amp;
+Gelman's recommendation for fixed-L HMC.</p>
+<p><b>Robust <code>trace_fn</code></b>: it drills through arbitrarily many
+<code>inner_results</code> layers with a <code>while hasattr(...)</code> loop, then
+defensively reads <code>is_accepted</code> / <code>target_log_prob</code> with
+<code>hasattr</code> fallbacks — so it survives different wrapper depths.</p>
+<p><b>Two sub-paths by <code>progress_every</code>:</b></p>
+<ul>
+<li><code>progress_every &lt;= 0</code>: a single fused <code>tfm.sample_chain</code>
+call with <code>num_burnin_steps=num_burnin</code> (fast, graph-compiled, silent).</li>
+<li><code>progress_every &gt; 0</code>: an explicit Python loop calling
+<code>kernel.one_step</code> with <code>bootstrap_results</code>, collecting per-step
+state and printing heartbeat lines. Slower but observable; only post-burn states are
+kept.</li>
+</ul>
+<p>Returns <code>(samples, acc, lp, step)</code> as NumPy arrays in both paths.
+Complexity O(total × leapfrog × cost(ll)). Edge cases: the looped path seeds
+<code>one_step</code> with <code>[seed, s+1]</code> (a 2-vector "stateless" seed) — a
+different RNG convention than the fused path's scalar <code>seed</code>.</p>
+</details>
+
+<!-- diagnostics -->
+<h3 id="f-rhat">split_rhat(samples) &amp; ess_bulk(samples)</h3>
+<details>
+<summary>Convergence (R-hat) and efficiency (ESS) diagnostics</summary>
+<p><b>split_rhat</b> — Gelman–Rubin on <i>split</i> half-chains. With <code>&lt;2</code>
+chains it returns <code>NaN</code> (R-hat undefined). It splits each chain in half and
+treats the halves as extra chains (so even 2 chains give 4 sequences), then computes the
+classic between/within variance ratio:</p>
+<pre><code>B = N · var_across_sequences(means)        # between
+W = mean(within-sequence variances)        # within
+var_hat = ((N-1)/N)·W + B/N
+Rhat = sqrt(var_hat / W)</code></pre>
+<p>R-hat ≈ 1.00 ⇒ chains agree (converged); &gt;1.01–1.1 ⇒ trouble. Splitting catches
+<i>within-chain</i> non-stationarity (drift) that plain R-hat misses.</p>
+<p><b>ess_bulk</b> — loops parameter-by-parameter so TFP's
+<code>effective_sample_size</code> sees a clean <code>(chains, draws)</code> tensor and
+broadcasts <code>cross_chain_dims=[0]</code>; with 1 chain it computes per-chain ESS.
+ESS estimates the number of <i>independent</i> draws after accounting for
+autocorrelation — the real currency of MCMC efficiency.</p>
+<p>Complexity: R-hat O(chains·draws·dim); ESS O(dim · chains · draws log draws) (FFT
+autocorrelation). Edge cases: both guard the 1-chain case; R-hat clamps the denominator
+with <code>max(W, 1e-12)</code> to avoid divide-by-zero.</p>
+</details>
+
+<!-- summarise_posterior -->
+<h3 id="f-summary">summarise_posterior(samples_constrained, truth) → list[dict]</h3>
+<details>
+<summary>Per-parameter summary rows incl. coverage &amp; bias</summary>
+<p>Builds one dict per parameter (<code>mu</code>, <code>phi</code>,
+<code>sigma_eta_sq</code>) plus a derived <code>sigma_eta</code> row computed as
+<code>sqrt(sigma_eta_sq)</code>. For each it records mean, std (ddof=1),
+median, 2.5/97.5% quantiles, R-hat, ESS, a boolean <b>95% CI coverage</b> of truth, and
+both percent and absolute bias.</p>
+<pre><code>truth_arr = [mu, phi, sigma_eta**2]     # note: variance, to match sigma_eta_sq
+flat = samples_constrained.reshape(-1, 3)   # pool all chains for marginals
+covered = q025 &lt;= truth_val &lt;= q975</code></pre>
+<p><b>Important design choices:</b> R-hat/ESS use the structured
+<code>(chains, draws, dim)</code> array (cross-chain), but means/quantiles use the
+<i>pooled</i> <code>flat</code> array. The derived <code>sigma_eta</code> row sets
+R-hat/ESS to <code>NaN</code> (those are reported on the sampled coordinate
+<code>sigma_eta_sq</code>, not the transform). <code>bias_pct</code> guards
+near-zero truth (<code>|truth|&gt;1e-3</code>) returning <code>NaN</code> for
+<code>mu=0</code> — which is exactly the default truth, so <code>mu</code>'s bias% is
+typically NaN by design.</p>
+<p>Complexity O(chains·draws·dim). Edge cases: <code>np.maximum(flat[:,2],1e-12)</code>
+before <code>sqrt</code> guards negative round-off; <code>ddof=1</code> needs ≥2
+samples.</p>
+</details>
+
+<!-- report -->
+<h3 id="f-report">_write_reports_and_plots(...) → int</h3>
+<details>
+<summary>Console table, defensive .npz, txt/json reports, matplotlib figures</summary>
+<ul>
+<li><b>Defensive <code>.npz</code> first</b>: saves stacked
+<code>samples_raw/constrained/accept/log_prob/step_size/truth</code> before printing, so
+a crash mid-report still leaves data. The <code>step_size</code> field handles both
+list-of-arrays and array inputs.</li>
+<li><b>Console + txt</b>: a fixed-width table (truth/mean/std/median/CI/R-hat/ESS/bias/
+coverage) plus per-chain and overall accept rates and final step sizes. The txt report
+also appends the documented HRS sigma_eta-bias caveat and the KSC(1998) fix pointer.</li>
+<li><b>JSON</b>: same content machine-readable, including <code>vars(args)</code> config
+echo.</li>
+<li><b>Plots (if <code>_HAVE_MPL</code>)</b>: per-chain traceplots (one panel per
+param, truth as red dashed line) and pooled posterior marginals (histograms with
+truth + posterior-mean lines). Saved at 120 dpi, figures explicitly
+<code>plt.close()</code>d to free memory.</li>
+</ul>
+<p>Returns 0. Complexity O(chains·draws). Edge cases: <code>bias_pct</code> NaN renders
+as <code>nan%</code> in the table; the <code>step_size</code> stacking branch is the
+trickiest line (mixed types).</p>
+</details>
+
+<!-- aggregate -->
+<h3 id="f-agg">_aggregate_from_chains(_args, out_dir) → tuple</h3>
+<p>Globs <code>out_dir/chains/chain_*.npz</code> (sorted), loads each, and
+<code>np.stack</code>s them into the same <code>(chains, …)</code> arrays the sequential
+path produces — so downstream diagnostics are identical. Wall time is reported as
+<code>max</code> of per-chain elapsed (because the chains were meant to run in
+<i>parallel</i> processes). Raises <code>FileNotFoundError</code> if no chain files
+exist. <code>_args</code> is reserved for future use. This is what enables the
+parallel-launcher workflow: spawn N processes each with <code>--chain_id k</code>, then
+one process with <code>--aggregate</code>.</p>
+
+<!-- main -->
+<h3 id="f-main">main() → int</h3>
+<details>
+<summary>Argument surface and three-mode dispatch</summary>
+<p><b>Args</b> cover: truth (<code>mu/phi/sigma_eta</code>), data size
+(<code>T</code>), filter knobs (<code>N, n_lambda, K, L</code>), HMC knobs
+(<code>step_size, num_chains, num_burnin, num_results, dispersion</code>), seeds,
+<code>progress_every</code>, <code>out_dir</code>, the six prior hyperparameters, and
+the mode/kernel toggles (<code>chain_id, aggregate, use_windowed_adaptive,
+diagonal_mass, no_likelihood</code>).</p>
+<p><b>Note on defaults</b>: <code>prior_phi_raw_loc=2.0, scale=0.5</code> concentrates
+<code>phi</code> near <code>tanh(2)≈0.964</code> — a weakly-informative prior tuned to
+keep the chain out of the near-non-stationary mode at small T (the docstring of
+<code>make_target_log_prob</code> explains this).</p>
+<p><b>Dispatch order</b>: (1) <code>--aggregate</code> short-circuits to
+load+diagnose+report; otherwise it generates data, builds <code>ll</code> and the
+target, then (2) if <code>--chain_id</code> is set runs exactly that chain and saves it,
+else (3) loops all chains sequentially and writes the combined report.</p>
+<p><b>Inits</b>: <code>truth_raw = unconstrain(mu, phi, sigma_eta**2)</code> then per
+chain add <code>dispersion · standard_normal(3)</code> — dispersed starts are what make
+R-hat meaningful (chains must start apart to prove they mix to the same place).
+<code>crn_seed = base_seed</code> is shared across chains so the target is the same
+function for all of them.</p>
+<p>Complexity dominated by sampling. Edge cases: <code>chain_id</code> out of range
+raises <code>ValueError</code>; the <code>chains/</code> dir is always created even in
+sequential mode.</p>
+</details>
+
+<!-- ================= 6. DATA STRUCTURES ================= -->
+<h2 id="datastruct">6 · Data Structures</h2>
+<table>
+<thead><tr><th>Structure</th><th>Purpose</th><th>Lifetime</th><th>Mutation</th><th>Ownership</th></tr></thead>
+<tbody>
+<tr><td><code>theta_raw</code> (3-vector)</td><td>Unconstrained parameter point HMC moves through.</td><td>Per leapfrog step.</td><td>Immutable per eval; new tensor each step.</td><td>Created by sampler, read by target.</td></tr>
+<tr><td><code>y_obs</code> (T,)</td><td>The fixed observed data (likelihood conditions on it).</td><td>Whole run.</td><td>Never mutated.</td><td>Built in <code>main</code>, captured by closure.</td></tr>
+<tr><td>prior objects (<code>tfd.Normal</code>)</td><td>Log-prior terms.</td><td>Lifetime of the closure.</td><td>Immutable.</td><td>Owned by the closure (built once).</td></tr>
+<tr><td>momentum distribution</td><td>Encodes the mass matrix M.</td><td>Rebuilt per warmup window; frozen for sampling.</td><td>Replaced (not mutated) each window.</td><td>Local to <code>run_chain_windowed_proper</code>.</td></tr>
+<tr><td><code>samples</code> (chains, draws, 3)</td><td>Posterior draws.</td><td>From sampling to report.</td><td>Built by stacking; then read-only.</td><td>Aggregated in <code>main</code>.</td></tr>
+<tr><td><code>rows</code> (list[dict])</td><td>Per-parameter summary records.</td><td>Report stage.</td><td>Appended once.</td><td><code>summarise_posterior</code> → report.</td></tr>
+<tr><td>kernel-results namedtuples</td><td>Carry step size, accept ratio, log-prob between steps.</td><td>Per step.</td><td>Functionally replaced via <code>_replace</code>.</td><td>TFP-owned; accessed via getter/setter lambdas.</td></tr>
+</tbody></table>
+
+<!-- ================= 7. ALGORITHMS ================= -->
+<h2 id="algos">7 · Algorithm Walkthrough</h2>
+
+<h3>HMC / Preconditioned HMC</h3>
+<p><b>Intuition.</b> Treat <code>−log posterior</code> as a potential energy surface;
+add a random momentum, simulate frictionless physics (leapfrog integration) for
+<code>L</code> steps, then accept/reject with a Metropolis correction for integration
+error. Momentum lets the sampler take long, low-rejection moves instead of a random
+walk.</p>
+<p><b>Mapping to code.</b> <code>num_leapfrog_steps = L</code> is the trajectory length;
+<code>step_size = eps</code> is the leapfrog step. The target's gradient (autodiff
+through <code>ll</code>) is the force. The <code>momentum_distribution</code> is the
+mass matrix — preconditioning. Runtime per step ≈ <code>L</code> gradient evals; each
+gradient eval is one filter pass.</p>
+
+<h3>Dual-averaging step-size adaptation</h3>
+<p><b>Intuition.</b> Tune <code>eps</code> during warmup so the average acceptance hits
+a target (0.65). Nesterov dual-averaging adjusts <code>log eps</code> and keeps a
+<i>smoothed</i> running average (<code>log_averaging_step</code>) used as the final
+value. Too-large <code>eps</code> → high rejection; too-small → tiny moves.</p>
+
+<h3>Windowed mass-matrix adaptation (Stan-style)</h3>
+<p><b>Intuition.</b> The ideal mass matrix is the posterior precision (inverse
+covariance): it "sphericises" the geometry so leapfrog steps are equally good in every
+direction. You don't know it a priori, so estimate it in expanding windows, each time
+re-centring the step-size adaptation. <b>Code mapping:</b> per window →
+<code>covariance(win)</code> → clip eigenvalues → <code>inv</code> → precision →
+<code>MultivariateNormalTriL(scale_tril=cholesky(precision))</code>. Runtime adds tiny
+3×3 linear algebra; memory negligible vs the filter.</p>
+
+<h3>Unconstrained reparameterisation</h3>
+<p><code>tanh</code> for <code>phi∈(-1,1)</code>, <code>exp</code> for
+<code>sigma_eta_sq&gt;0</code>. Lets HMC run on ℝ³. Runtime O(1).</p>
+
+<h3>SVSSM data generation</h3>
+<p>AR(1) latent recursion + multiplicative observation noise; O(T). (See
+<a href="#f-gen">§5 gen_svssm</a>.)</p>
+
+<h3>split-R-hat &amp; ESS</h3>
+<p>Variance-ratio convergence and autocorrelation-based effective sample size — the two
+numbers that decide whether the run can be trusted. (See <a href="#f-rhat">§5</a>.)</p>
+
+<!-- ================= 8. DATA FLOW ================= -->
+<h2 id="dataflow">8 · Data Flow</h2>
+<figure>
+<svg viewBox="0 0 960 250" role="img" aria-label="Data flow diagram">
+  <defs><marker id="ar3" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+    <path d="M0,0 L7,3 L0,6 Z" fill="#555"/></marker></defs>
+  <style>
+    .d{fill:#f7f9ff;stroke:#2f6fed;stroke-width:1.1;}
+    .dd{fill:#eef6ee;stroke:#3a8a3a;stroke-width:1.1;}
+    .dt{font:12px Inter,Arial,sans-serif;fill:#222;}
+    .de{stroke:#555;stroke-width:1.1;fill:none;marker-end:url(#ar3);}
+    .dl{font:11px Inter,Arial,sans-serif;fill:#666;}
+  </style>
+  <rect class="dd" x="10" y="30" width="150" height="34" rx="6"/><text class="dt" x="85" y="51" text-anchor="middle">truth (mu,phi,σ_η)</text>
+  <rect class="d" x="10" y="150" width="150" height="34" rx="6"/><text class="dt" x="85" y="171" text-anchor="middle">theta_raw ∈ ℝ³</text>
+
+  <rect class="d" x="210" y="30" width="140" height="34" rx="6"/><text class="dt" x="280" y="51" text-anchor="middle">gen_svssm</text>
+  <rect class="d" x="210" y="150" width="140" height="34" rx="6"/><text class="dt" x="280" y="171" text-anchor="middle">constrain → phi,σ²</text>
+
+  <rect class="d" x="400" y="90" width="150" height="34" rx="6"/><text class="dt" x="475" y="111" text-anchor="middle">target_log_prob</text>
+  <rect class="d" x="600" y="90" width="120" height="34" rx="6"/><text class="dt" x="660" y="111" text-anchor="middle">ll(...) → logL</text>
+
+  <rect class="d" x="400" y="180" width="150" height="34" rx="6"/><text class="dt" x="475" y="201" text-anchor="middle">samples (C,D,3)</text>
+  <rect class="d" x="600" y="180" width="150" height="34" rx="6"/><text class="dt" x="675" y="201" text-anchor="middle">summarise → rows</text>
+  <rect class="dd" x="790" y="180" width="150" height="34" rx="6"/><text class="dt" x="865" y="201" text-anchor="middle">txt/json/npz/png</text>
+
+  <line class="de" x1="160" y1="47" x2="210" y2="47"/>
+  <line class="de" x1="350" y1="47" x2="475" y2="90"/><text class="dl" x="372" y="64">y_obs</text>
+  <line class="de" x1="160" y1="167" x2="210" y2="167"/>
+  <line class="de" x1="350" y1="167" x2="475" y2="124"/>
+  <line class="de" x1="550" y1="107" x2="600" y2="107"/>
+  <line class="de" x1="475" y1="124" x2="475" y2="180"/><text class="dl" x="480" y="155">accepted draws</text>
+  <line class="de" x1="550" y1="197" x2="600" y2="197"/>
+  <line class="de" x1="750" y1="197" x2="790" y2="197"/>
+</svg>
+<figcaption>Input → transform → likelihood; sampler draws → constrain → summarise →
+outputs. Green = external boundary (data in, files out).</figcaption>
+</figure>
+<p><b>Narrative.</b> Truth → <code>gen_svssm</code> → <code>y_obs</code> (fixed). The
+sampler proposes <code>theta_raw</code>; the target maps it to <code>phi/σ²</code>, adds
+the prior, calls <code>ll(...,y_obs)</code> for the data term, returns a scalar log-post
+that drives accept/reject. Accepted <code>theta_raw</code> draws accumulate to
+<code>(chains, draws, 3)</code>, are <code>constrain</code>ed to natural space,
+summarised, and written to disk.</p>
+
+<!-- ================= 9. MEMORY ================= -->
+<h2 id="memory">9 · Memory Analysis</h2>
+<ul>
+<li><b>Dominant footprint</b>: the sample arrays <code>(chains, draws, 3)</code> in
+float32 — tiny (e.g. 4×400×3×4B ≈ 19 KB). The real memory cost lives inside
+<code>ll</code> (particles × T), which this file doesn't own.</li>
+<li><b>Per-step allocations</b>: each leapfrog gradient builds a fresh autodiff graph
+through <code>ll</code> — transient, freed after the step.</li>
+<li><b>Window sample blocks</b>: <code>samples_w</code> per warmup window are temporary;
+only their covariance is retained (as the new momentum dist).</li>
+<li><b>Copies vs references</b>: <code>.numpy()</code> calls copy device tensors to
+host; intentional, at chain boundaries only. <code>final_state = samples[-1]</code> is a
+view/slice, cheap.</li>
+<li><b>Plot figures</b>: explicitly <code>plt.close()</code>d to release Agg buffers —
+important in long batch runs.</li>
+<li><b>GC considerations</b>: closures capture <code>ll</code>, <code>y_obs</code>,
+priors for the whole run; they persist until <code>main</code> returns. No leaks of
+note.</li>
+</ul>
+
+<!-- ================= 10. PERFORMANCE ================= -->
+<h2 id="perf">10 · Performance Analysis</h2>
+<table>
+<thead><tr><th>Area</th><th>Observation</th></tr></thead>
+<tbody>
+<tr><td><b>Bottleneck</b></td><td><code>ll(...)</code> — one filter pass per leapfrog step, <code>L</code> per HMC step, ×chains×(burnin+draws). Everything else is rounding error.</td></tr>
+<tr><td><b>jit_compile</b></td><td>The filter is built with <code>jit_compile=True</code> (XLA) — the main lever for speed; this file relies on it.</td></tr>
+<tr><td><b>Heartbeat path cost</b></td><td><code>progress_every &gt; 0</code> uses an eager Python <code>one_step</code> loop (and chunked sampling) — observable but slower than the fused <code>sample_chain</code>. A speed/visibility trade-off.</td></tr>
+<tr><td><b>Repeated work</b></td><td>Priors built once (good). CRN seed reset every eval is O(1). Dense mass <code>eigh/inv</code> only at window ends.</td></tr>
+<tr><td><b>Vectorisation</b></td><td><code>gen_svssm</code> is a Python loop; could be <code>tf.scan</code>. <code>constrain</code> is already vectorised over <code>(chains,draws)</code>.</td></tr>
+<tr><td><b>Parallelism</b></td><td>The <code>--chain_id</code>/<code>--aggregate</code> design enables process-level parallel chains (chains are embarrassingly parallel); sequential mode does not exploit it.</td></tr>
+<tr><td><b>Caching opportunity</b></td><td>None obvious in this file; the filter could cache compiled graphs across calls (and likely does via XLA).</td></tr>
+</tbody></table>
+
+<!-- ================= 11. DEBUGGING ================= -->
+<h2 id="debug">11 · Debugging Guide</h2>
+<details>
+<summary>Common failures, symptoms, root causes, fixes</summary>
+<table>
+<thead><tr><th>Symptom</th><th>Likely root cause</th><th>How to debug / fix</th></tr></thead>
+<tbody>
+<tr><td>Accept rate → 0 or 1; step size blows up</td><td>The <code>-1e6</code> sentinel trap (if reintroduced), or runaway dual-averaging.</td><td>Confirm <code>-inf</code> guard in target; use the windowed kernel (resets DA per window); check step-size cap <code>[1e-4,0.3]</code>.</td></tr>
+<tr><td>R-hat ≫ 1.01</td><td>Chains stuck in different modes / too few draws / inits not dispersed.</td><td>Increase <code>dispersion</code>, <code>num_burnin</code>; inspect traceplots; tighten <code>phi_raw</code> prior to avoid near-non-stationary mode.</td></tr>
+<tr><td>ESS tiny vs draws</td><td>High autocorrelation — step too small or geometry not preconditioned.</td><td>Enable <code>--use_windowed_adaptive</code> (dense mass) to handle the (phi,σ²) ridge; raise <code>L</code>.</td></tr>
+<tr><td><code>NaN</code>/<code>Inf</code> log-prob</td><td>Extreme params → filter divergence; or <code>exp</code> overflow.</td><td>The <code>tf.where(is_finite, …, -inf)</code> guard rejects them; if persistent, tighten priors or floor params.</td></tr>
+<tr><td><code>sigma_eta</code> mean above truth</td><td>NOT a bug — documented HRS quasi-likelihood upward bias (+30–50%).</td><td>Expected; for exact inference swap in KSC(1998) mixture.</td></tr>
+<tr><td><code>FileNotFoundError</code> in aggregate</td><td>No <code>chains/chain_*.npz</code> written yet.</td><td>Run the per-chain jobs first (<code>--chain_id k</code>).</td></tr>
+<tr><td>Crash in report after long run</td><td>Plotting / formatting error.</td><td>The defensive <code>.npz</code> is saved <i>before</i> printing — re-run with <code>--aggregate</code> to regenerate reports from saved data.</td></tr>
+<tr><td>Getter/setter lambda <code>AttributeError</code></td><td>TFP version changed the kernel-results layout.</td><td>Inspect <code>kernel.bootstrap_results(state)</code> structure; update the lambdas.</td></tr>
+</tbody></table>
+</details>
+
+<!-- ================= 12. MODIFICATION ================= -->
+<h2 id="modify">12 · Modification Guide</h2>
+<ul>
+<li><b>Swap the likelihood</b>: only <code>make_target_log_prob</code> calls
+<code>ll(mu, phi, sigma_eta_sq, y_obs)</code> and <code>main</code> constructs it. Any
+object with that call signature drops in (e.g. a KSC mixture). Tightly coupled to the
+4-arg interface.</li>
+<li><b>Add a parameter</b>: touches <code>unconstrain</code>/<code>constrain</code> (add
+a coordinate + its transform), <code>theta_raw</code> indexing in the closure, the
+<code>state_dim=3</code> assumptions, <code>summarise_posterior</code>'s name/truth
+arrays, and the plotting loops. These are the tightly-coupled "magic 3" sites.</li>
+<li><b>Change priors</b>: just pass different CLI hyperparameters — no code change.</li>
+<li><b>Switch sampler</b>: <code>--use_windowed_adaptive</code> /
+<code>--diagonal_mass</code> already toggle this. To add NUTS, add a branch in
+<code>run_chain</code> mirroring the vanilla path with <code>tfm.NoUTurnSampler</code>.</li>
+<li><b>Parallelise</b>: already supported via <code>--chain_id</code> + <code>--aggregate</code>;
+wire a shell/launcher to fan out processes.</li>
+<li><b>Refactor risk</b>: the getter/setter and trace lambdas are coupled to TFP's
+namedtuple layout — change with care and test
+<code>kernel.bootstrap_results</code> structure first.</li>
+</ul>
+
+<!-- ================= 13. TESTING ================= -->
+<h2 id="testing">13 · Testing Strategy</h2>
+<table>
+<thead><tr><th>Target</th><th>Unit</th><th>Edge cases</th><th>Integration / stress</th></tr></thead>
+<tbody>
+<tr><td><code>gen_svssm</code></td><td>Fixed seed → deterministic series; shape <code>(T,)</code>; phi=0 ⇒ y_t iid lognormal-scaled.</td><td>T=0/1; |phi|→1 stability; sigma_eta=0 ⇒ constant h.</td><td>Recover empirical AR(1) acf ≈ phi over large T.</td></tr>
+<tr><td><code>unconstrain/constrain</code></td><td>Round-trip: <code>constrain(unconstrain(x))≈x</code>.</td><td>phi=±1 clip; sigma_eta_sq=0 floor; vectorised shapes.</td><td>Apply to a <code>(C,D,3)</code> tensor.</td></tr>
+<tr><td><code>make_target_log_prob</code></td><td>no_likelihood returns pure prior; finite for sane theta.</td><td>NaN likelihood → <code>-inf</code>; complex logL → real part.</td><td>Gradient finite via <code>tf.GradientTape</code>.</td></tr>
+<tr><td><code>split_rhat</code></td><td>Identical chains ⇒ R-hat≈1; 1 chain ⇒ NaN.</td><td>2 vs 4 sequences; tiny W.</td><td>Known-divergent chains ⇒ R-hat≫1.</td></tr>
+<tr><td><code>ess_bulk</code></td><td>iid draws ⇒ ESS≈draws; AR(1) draws ⇒ ESS&lt;draws.</td><td>1 chain path; constant draws.</td><td>Compare to ArviZ on the same array.</td></tr>
+<tr><td><code>summarise_posterior</code></td><td>Coverage boolean correct; bias signs.</td><td>truth=0 ⇒ bias% NaN; derived sigma_eta row.</td><td>End-to-end on a tiny synthetic run.</td></tr>
+<tr><td>windowed sampler</td><td>Step stays in cap; mass PSD.</td><td>tiny burnin floors; stuck-chain clip.</td><td>Recover known truth at small T within CI.</td></tr>
+<tr><td><code>main</code> modes</td><td>aggregate reproduces sequential numbers.</td><td>chain_id out of range ⇒ ValueError.</td><td>parallel chains → aggregate == sequential.</td></tr>
+</tbody></table>
+
+<!-- ================= 14. INTERVIEW QUESTIONS ================= -->
+<h2 id="interview">14 · Common Interview Questions</h2>
+
+<details open>
+<summary>Beginner (10)</summary>
+<ol>
+<li>What does <code>gen_svssm</code> return, and what shape is it?</li>
+<li>Why is <code>h</code> initialised at <code>mu</code> rather than 0?</li>
+<li>What are the three inferred parameters and their natural ranges?</li>
+<li>Why do we sample in <code>theta_raw</code> instead of <code>(mu, phi, sigma_eta)</code> directly?</li>
+<li>What does <code>tanh</code> enforce on <code>phi</code>? What does <code>exp</code> enforce on <code>sigma_eta_sq</code>?</li>
+<li>What is <code>_HAVE_MPL</code> for, and why guard plotting?</li>
+<li>What does <code>target_accept_prob=0.65</code> control?</li>
+<li>What's the difference between <code>num_burnin</code> and <code>num_results</code>?</li>
+<li>Why is <code>raise SystemExit(main())</code> used at the bottom?</li>
+<li>What does R-hat near 1.0 tell you?</li>
+</ol>
+</details>
+
+<details>
+<summary>Intermediate (15)</summary>
+<ol>
+<li>Why reset <code>tf.random.set_seed(crn_seed)</code> inside the target every call?</li>
+<li>Why <code>-inf</code> instead of <code>-1e6</code> for a bad likelihood? Walk through the MH ratio.</li>
+<li>Why is there no Jacobian term for the tanh/exp transforms? When <i>would</i> you need one?</li>
+<li>Why does <code>summarise_posterior</code> use the pooled <code>flat</code> array for means but the structured array for R-hat?</li>
+<li>Why does <code>mu</code>'s <code>bias_pct</code> come out as NaN with the default truth?</li>
+<li>What is the meaning of the mass matrix here, and why is it the <i>inverse</i> covariance?</li>
+<li>Why does <code>_run_window</code> prefer <code>log_averaging_step</code> over the last <code>new_step_size</code>?</li>
+<li>What does <code>cross_chain_dims=[0]</code> do in <code>ess_bulk</code>?</li>
+<li>Why split chains in <code>split_rhat</code> instead of using whole chains?</li>
+<li>Why is <code>sigma_eta</code> expected to be biased high? Is that a bug?</li>
+<li>What does <code>dispersion</code> do and why start chains apart?</li>
+<li>Why are the priors constructed outside the closure?</li>
+<li>What's the role of the <code>hasattr(kr,"new_step_size")</code> probe in the trace fns?</li>
+<li>How does the <code>--chain_id</code>/<code>--aggregate</code> pair enable parallelism?</li>
+<li>Why does the heartbeat path use <code>kernel.one_step</code> + <code>bootstrap_results</code> instead of <code>sample_chain</code>?</li>
+</ol>
+</details>
+
+<details>
+<summary>Advanced (20)</summary>
+<ol>
+<li>Derive why a finite negative sentinel breaks dual-averaging but <code>-inf</code> doesn't.</li>
+<li>Explain the eigenvalue-clipping of the dense covariance: what is preserved, what is bounded, and why operate on eigenvalues rather than entries?</li>
+<li>Why does the last warmup window deliberately <i>not</i> update the mass matrix? What failure did the separate "term" phase have?</li>
+<li>Walk through the getter/setter lambdas and the exact namedtuple path they traverse. What breaks them?</li>
+<li>The comment notes a v4 bug passing variance as momentum scale² ("wrong direction"). Show how the leapfrog update reveals the correct direction.</li>
+<li>Why can two independent adapters (step-size + mass) co-amplify to <code>eps→inf</code>? How does per-window reset fix it?</li>
+<li>How would you add a Jacobian-corrected prior on <code>phi</code> itself? Write the extra term.</li>
+<li>Why <code>target_accept=0.65</code> for fixed-L HMC vs ~0.8 for NUTS? Tie it to integration-error scaling.</li>
+<li>The CRN seed makes the PF estimate deterministic in theta. What bias does this introduce, and is the sampler still exact for the true posterior?</li>
+<li>How does preconditioning relate to the condition number of the posterior Hessian? Why does it help the (phi,σ²) ridge?</li>
+<li>Explain why ESS uses an FFT-based autocorrelation and its complexity.</li>
+<li>Contrast diagonal vs dense mass cost/benefit at d=3 vs high d.</li>
+<li>How would non-stationary <code>phi</code> manifest in <code>gen_svssm</code> and in the posterior geometry?</li>
+<li>Why report wall time as <code>max</code> of per-chain times in aggregate mode?</li>
+<li>What changes if the likelihood returned a stochastic gradient without CRN — relate to "noisy HMC" literature.</li>
+<li>Show where float32 vs float64 could bite (cholesky/inv of near-singular cov).</li>
+<li>The step-size cap is <code>[1e-4,0.3]</code>. How would you derive a principled upper cap from <code>L</code> and trajectory length?</li>
+<li>How would you detect divergences (à la NUTS) in this fixed-L HMC?</li>
+<li>If R-hat is fine but ESS is low only for <code>sigma_eta_sq</code>, what does that imply and how to fix?</li>
+<li>Propose a correctness test that does not rely on knowing the truth (e.g. SBC — simulation-based calibration).</li>
+</ol>
+</details>
+
+<!-- ================= 15. WHITEBOARD ================= -->
+<h2 id="whiteboard">15 · Whiteboard Walkthrough</h2>
+<h4>30 seconds</h4>
+<p>"It's a parameter-recovery harness for a stochastic-volatility model: simulate data
+from known truth, run HMC over <code>(mu, phi, sigma_eta)</code> reparameterised to
+unconstrained space with weak priors, then check R-hat/ESS/CI coverage against truth.
+Two samplers: vanilla HMC and a hand-rolled Stan-style windowed adaptive HMC."</p>
+<h4>2 minutes</h4>
+<p>"<code>main</code> has three modes. The interesting one generates a series via the
+AR(1) volatility recursion, builds a differentiable particle-filter likelihood, and
+constructs a target log-posterior. The target maps <code>theta_raw=[mu, phi_raw,
+log_sigma_eta_sq]</code> through <code>tanh</code>/<code>exp</code>, adds Gaussian priors
+on the unconstrained coords, fixes a common-random-number seed so the PF estimate is
+deterministic in theta (so leapfrog conserves energy), and returns <code>-inf</code> on
+non-finite likelihood so MH rejects cleanly. We run several dispersed chains; the
+windowed sampler adapts the step size with dual-averaging and the mass matrix as the
+clipped inverse posterior covariance, re-estimated in expanding windows with the adapter
+reset each window to avoid runaway step sizes. Finally we stack to
+<code>(chains,draws,3)</code>, constrain back, and report mean/CI/R-hat/ESS plus
+coverage. <code>sigma_eta</code> is expected high by ~30–50% — a documented
+quasi-likelihood bias, not a bug."</p>
+<h4>10 minutes</h4>
+<p>Cover, in order: (1) the model + <code>gen_svssm</code> recursion; (2) the
+unconstrained reparam and why HMC needs it; (3) the target closure line-by-line (CRN,
+real-part cast, <code>-inf</code> guard, no-Jacobian choice); (4) vanilla HMC +
+dual-averaging; (5) the windowed sampler — window budget, mass=precision convention,
+eigen-clipping, the "super-window replaces term phase" insight, and the
+per-window-reset rationale; (6) diagnostics (split-R-hat, ESS) and what good values look
+like; (7) the three run modes and the parallel <code>chain_id/aggregate</code> design;
+(8) the known <code>sigma_eta</code> bias and the KSC(1998) fix. Sketch the call graph
+and the data-flow diagram as you go.</p>
+
+<!-- ================= 16. REFACTORING ================= -->
+<h2 id="refactor">16 · Refactoring Suggestions</h2>
+<ul>
+<li><b>Magic number 3</b>: <code>state_dim=3</code>, the <code>[mu,phi,σ²]</code> name
+list, and indexing are scattered. Introduce a small <code>PARAM_NAMES</code> /
+<code>N_PARAMS</code> constant and a <code>Bijector</code> object to centralise the
+transform (TFP's <code>tfb.Chain([Identity, Tanh, Exp])</code> would also give free
+Jacobians).</li>
+<li><b>Duplicated chain-run block</b>: the single-chain and sequential paths in
+<code>main</code> repeat the <code>run_chain</code> call + logging. Extract a
+<code>_run_one_chain(c)</code> helper.</li>
+<li><b>Duplicated table formatting</b>: the console and txt reports build nearly
+identical fixed-width rows — factor a <code>format_row(r)</code>.</li>
+<li><b>Closure global-seed side effect</b>: resetting the <i>global</i> TF seed inside
+the target is a code smell; prefer a stateless seed threaded into the filter if its API
+allows.</li>
+<li><b>TFP-coupled lambdas</b>: wrap the getter/setter/trace plumbing in one small
+adapter class with a version-guard, so a TFP bump touches one place.</li>
+<li><b>Naming</b>: <code>unconstrain</code> takes the <i>variance</i> but is named for
+the general transform — a docstring-level <code>sigma_eta_sq</code> note helps;
+consider <code>unconstrain_var</code>.</li>
+<li><b><code>gen_svssm</code></b>: replace the eager Python loop with <code>tf.scan</code>
+for speed and to drop the global-seed reliance.</li>
+</ul>
+
+<!-- ================= 17. CHEAT SHEET ================= -->
+<h2 id="cheat">17 · Cheat Sheet</h2>
+<h4>Functions (one-liners)</h4>
+<table>
+<tbody>
+<tr><td><code>gen_svssm</code></td><td>Simulate the SV series from known truth.</td></tr>
+<tr><td><code>make_target_log_prob</code></td><td>Build prior+likelihood closure over unconstrained theta.</td></tr>
+<tr><td><code>unconstrain/constrain</code></td><td>Bijections natural ↔ ℝ³ (tanh/exp).</td></tr>
+<tr><td><code>_build_preconditioned_kernel</code></td><td>PreconditionedHMC (+DualAveraging).</td></tr>
+<tr><td><code>_trace_preconditioned</code></td><td>(accepted, logp, step) for both layerings.</td></tr>
+<tr><td><code>_run_window</code></td><td>One HMC block; returns smoothed step.</td></tr>
+<tr><td><code>run_chain_windowed_proper</code></td><td>Stan-style windowed mass+step adaptation.</td></tr>
+<tr><td><code>run_chain</code></td><td>Dispatch vanilla vs windowed.</td></tr>
+<tr><td><code>split_rhat / ess_bulk</code></td><td>Convergence / efficiency diagnostics.</td></tr>
+<tr><td><code>summarise_posterior</code></td><td>Per-param mean/CI/R-hat/ESS/coverage rows.</td></tr>
+<tr><td><code>_write_reports_and_plots</code></td><td>Console + txt/json/npz + figures.</td></tr>
+<tr><td><code>_aggregate_from_chains</code></td><td>Reload per-chain npz → stacked arrays.</td></tr>
+<tr><td><code>main</code></td><td>Args + 3-mode dispatch.</td></tr>
+</tbody></table>
+
+<h4>Important variables</h4>
+<table><tbody>
+<tr><td><code>theta_raw</code></td><td><code>[mu, phi_raw, log_sigma_eta_sq]</code> — what HMC samples.</td></tr>
+<tr><td><code>y_obs</code></td><td>Fixed observed series, shape <code>(T,)</code>.</td></tr>
+<tr><td><code>momentum</code></td><td>Encodes mass matrix M = precision = cov⁻¹.</td></tr>
+<tr><td><code>samples</code></td><td><code>(chains, draws, 3)</code> posterior draws.</td></tr>
+<tr><td><code>crn_seed</code></td><td>Shared seed making the PF target deterministic in theta.</td></tr>
+</tbody></table>
+
+<h4>Most likely pitfalls</h4>
+<ul>
+<li><code>-inf</code> (not <code>-1e6</code>) guard — protects dual-averaging.</li>
+<li>Mass = inverse covariance (not covariance) — direction matters.</li>
+<li>No Jacobian: prior is defined in unconstrained space by choice.</li>
+<li><code>sigma_eta</code> biased high by design (HRS quasi-likelihood).</li>
+<li>CRN seed reset is global — a side effect to respect.</li>
+<li><code>sigma_eta</code> vs <code>sigma_eta_sq</code> confusion in (un)constrain.</li>
+</ul>
+
+<h4>Top interview hits</h4>
+<p>Why unconstrained sampling · why <code>-inf</code> not <code>-1e6</code> · what the
+mass matrix is and why it's the inverse covariance · why reset the adapter per window ·
+why the last window is also the term window · why <code>sigma_eta</code> is biased
+high.</p>
+
+<hr>
+<p class="small">Generated by the <code>code-explainer</code> skill · implementation
+over theory · facts are marked <span class="tag fact-tag">fact</span>, inferences
+<span class="tag inf-tag">inference</span>. The imported likelihood class is treated as
+a black box (not present in this repo).</p>
+
+</main>
+</div>
+</div>
+</body>
+</html>
