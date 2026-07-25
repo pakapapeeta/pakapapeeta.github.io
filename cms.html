@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>cms-flow-evt — Codebase Deep-Dive</title>
+<style>
+  /* ============================================================
+     TOKENS — light is the default :root; dark via media query,
+     and both are overridden by an explicit data-theme stamp.
+     ============================================================ */
+  :root {
+    --bg:        #eaeef5;
+    --surface:   #ffffff;
+    --surface-2: #f3f6fb;
+    --ink:       #131a27;
+    --ink-soft:  #45516a;
+    --ink-faint: #6d788d;
+    --line:      #d6dce7;
+    --line-2:    #c3cbda;
+    --accent:    #10869a;
+    --accent-2:  #0c6f81;
+    --stage1:    #a86a1f;   /* event net — amber / energy   */
+    --stage1-bg: #f6ead4;
+    --stage2:    #10869a;   /* particle net — teal / tracks */
+    --stage2-bg: #d5ebef;
+    --good:      #2c8862;
+    --good-bg:   #d9ede4;
+    --warn:      #b4495c;
+    --warn-bg:   #f4dfe3;
+    --code-bg:   #f1f4fa;
+    --code-ink:  #1d2637;
+    --hair: rgba(19,26,39,.09);
+    --shadow: 0 1px 2px rgba(19,26,39,.05), 0 8px 30px rgba(19,26,39,.06);
+    --serif: 'Iowan Old Style','Palatino Linotype','Palatino','Book Antiqua',Georgia,'Times New Roman',serif;
+    --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --mono: ui-monospace,'SF Mono','JetBrains Mono','Cascadia Code',Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:        #090d17;
+      --surface:   #10172a;
+      --surface-2: #0c1220;
+      --ink:       #e7ecf6;
+      --ink-soft:  #aab5c9;
+      --ink-faint: #78859c;
+      --line:      #212c43;
+      --line-2:    #32405c;
+      --accent:    #40c6da;
+      --accent-2:  #6fd7e6;
+      --stage1:    #e7ab4d;
+      --stage1-bg: #241d10;
+      --stage2:    #40c6da;
+      --stage2-bg: #0c2029;
+      --good:      #4cc292;
+      --good-bg:   #0e2018;
+      --warn:      #e8899a;
+      --warn-bg:   #241318;
+      --code-bg:   #0b1120;
+      --code-ink:  #d7deee;
+      --hair: rgba(231,236,246,.09);
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 34px rgba(0,0,0,.35);
+    }
+  }
+  /* explicit toggle wins over the OS media query, both directions */
+  :root[data-theme="light"] {
+    --bg:#eaeef5; --surface:#ffffff; --surface-2:#f3f6fb; --ink:#131a27;
+    --ink-soft:#45516a; --ink-faint:#6d788d; --line:#d6dce7; --line-2:#c3cbda;
+    --accent:#10869a; --accent-2:#0c6f81; --stage1:#a86a1f; --stage1-bg:#f6ead4;
+    --stage2:#10869a; --stage2-bg:#d5ebef; --good:#2c8862; --good-bg:#d9ede4;
+    --warn:#b4495c; --warn-bg:#f4dfe3; --code-bg:#f1f4fa; --code-ink:#1d2637;
+    --hair:rgba(19,26,39,.09); --shadow:0 1px 2px rgba(19,26,39,.05),0 8px 30px rgba(19,26,39,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg:#090d17; --surface:#10172a; --surface-2:#0c1220; --ink:#e7ecf6;
+    --ink-soft:#aab5c9; --ink-faint:#78859c; --line:#212c43; --line-2:#32405c;
+    --accent:#40c6da; --accent-2:#6fd7e6; --stage1:#e7ab4d; --stage1-bg:#241d10;
+    --stage2:#40c6da; --stage2-bg:#0c2029; --good:#4cc292; --good-bg:#0e2018;
+    --warn:#e8899a; --warn-bg:#241318; --code-bg:#0b1120; --code-ink:#d7deee;
+    --hair:rgba(231,236,246,.09); --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+
+  /* ---------- progress + top bar ---------- */
+  .progress {
+    position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+    background: var(--accent); z-index: 60; transition: width .08s linear;
+  }
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .7rem clamp(1rem, 4vw, 2.5rem);
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--hair);
+  }
+  .brand { display: flex; align-items: baseline; gap: .6rem; font-family: var(--mono); }
+  .brand b { font-weight: 700; letter-spacing: -.01em; color: var(--ink); font-size: .95rem; }
+  .brand span { font-size: .72rem; color: var(--ink-faint); }
+  .toggle {
+    font: 600 .74rem/1 var(--mono); letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-soft); background: var(--surface); border: 1px solid var(--line-2);
+    padding: .5rem .7rem; border-radius: 6px; cursor: pointer; display: inline-flex; gap: .45rem; align-items: center;
+  }
+  .toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: clamp(2.6rem, 7vw, 5rem) clamp(1rem, 4vw, 2.5rem) 1rem; max-width: 1160px; margin-inline: auto; }
+  .eyebrow {
+    font: 600 .72rem/1 var(--mono); letter-spacing: .22em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(2.1rem, 5.4vw, 3.4rem); line-height: 1.06;
+    letter-spacing: -.015em; margin: 0 0 1rem; max-width: 20ch; text-wrap: balance;
+  }
+  .lede { font-size: clamp(1.05rem, 2.2vw, 1.25rem); color: var(--ink-soft); max-width: 60ch; margin: 0 0 2rem; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  .specs { display: flex; flex-wrap: wrap; gap: .55rem; margin-bottom: 2.4rem; }
+  .spec {
+    display: flex; flex-direction: column; gap: .15rem;
+    padding: .6rem .85rem; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: var(--shadow);
+  }
+  .spec dt { font: 600 .62rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+  .spec dd { margin: 0; font-size: .9rem; font-weight: 600; color: var(--ink); }
+  .spec dd.mono { font-family: var(--mono); font-weight: 500; font-size: .82rem; }
+
+  /* ---------- pipeline schematic ---------- */
+  .schematic {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+    padding: 1.4rem; box-shadow: var(--shadow); overflow-x: auto;
+  }
+  .flow { display: flex; align-items: stretch; gap: .5rem; min-width: 640px; }
+  .node {
+    flex: 1; display: flex; flex-direction: column; gap: .35rem; justify-content: center;
+    padding: 1rem .9rem; border-radius: 9px; border: 1px solid var(--line-2); background: var(--surface);
+  }
+  .node .k { font: 600 .6rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+  .node .t { font-weight: 700; font-size: .92rem; letter-spacing: -.01em; }
+  .node .d { font-size: .78rem; color: var(--ink-soft); line-height: 1.45; }
+  .node.s1 { border-color: color-mix(in srgb, var(--stage1) 55%, var(--line-2)); background: var(--stage1-bg); }
+  .node.s1 .t { color: var(--stage1); }
+  .node.s2 { border-color: color-mix(in srgb, var(--stage2) 55%, var(--line-2)); background: var(--stage2-bg); }
+  .node.s2 .t { color: var(--stage2); }
+  .arrow { flex: 0 0 26px; align-self: center; color: var(--ink-faint); display: grid; place-items: center; }
+  .arrow svg { width: 26px; height: 18px; }
+  .cloud { flex: 0 0 84px; align-self: center; }
+  .cloud svg { width: 84px; height: 74px; display: block; }
+  .dot-gen { fill: var(--ink-faint); }
+  .dot-pf  { fill: var(--accent); }
+
+  /* ---------- layout ---------- */
+  .layout { max-width: 1160px; margin: 2rem auto 5rem; padding: 0 clamp(1rem, 4vw, 2.5rem); }
+  @media (min-width: 1080px) {
+    .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: clamp(2rem, 4vw, 3.4rem); align-items: start; }
+  }
+  .toc { display: none; }
+  @media (min-width: 1080px) {
+    .toc {
+      display: block; position: sticky; top: 72px; align-self: start;
+      font-size: .82rem; border-left: 1px solid var(--line); padding-left: 1rem;
+    }
+    .toc .lbl { font: 600 .62rem/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: .8rem; }
+    .toc a {
+      display: flex; gap: .55rem; padding: .32rem 0; color: var(--ink-soft); text-decoration: none;
+      border-left: 2px solid transparent; margin-left: -1rem; padding-left: calc(1rem - 2px);
+      transition: color .15s;
+    }
+    .toc a .num { font-family: var(--mono); font-size: .7rem; color: var(--ink-faint); }
+    .toc a:hover { color: var(--ink); }
+    .toc a.active { color: var(--accent); border-left-color: var(--accent); }
+    .toc a.active .num { color: var(--accent); }
+  }
+
+  main { max-width: 730px; }
+  section { padding-top: 2.6rem; margin-top: 2.6rem; border-top: 1px solid var(--hair); }
+  section:first-child { border-top: 0; margin-top: 0; padding-top: .5rem; }
+  .sec-label { font: 600 .66rem/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin: 0 0 .7rem; display: flex; gap: .6rem; align-items: center; }
+  .sec-label .idx { color: var(--ink-faint); }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.6rem, 3.4vw, 2.1rem); line-height: 1.12; letter-spacing: -.012em; margin: 0 0 1rem; text-wrap: balance; }
+  h3 { font-size: 1.12rem; font-weight: 700; letter-spacing: -.01em; margin: 2rem 0 .6rem; color: var(--ink); }
+  h3 .tag { font: 600 .62rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: .25em .5em; border-radius: 5px; vertical-align: middle; margin-right: .5rem; }
+  .tag.t1 { color: var(--stage1); background: var(--stage1-bg); border: 1px solid color-mix(in srgb, var(--stage1) 40%, transparent); }
+  .tag.t2 { color: var(--stage2); background: var(--stage2-bg); border: 1px solid color-mix(in srgb, var(--stage2) 40%, transparent); }
+  p { margin: 0 0 1.05rem; color: var(--ink); }
+  main p { color: color-mix(in srgb, var(--ink) 90%, var(--ink-soft)); }
+  a.link { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+  a.link:hover { border-bottom-color: var(--accent); }
+  strong { color: var(--ink); font-weight: 650; }
+  code {
+    font-family: var(--mono); font-size: .85em; background: var(--code-bg);
+    padding: .12em .4em; border-radius: 4px; color: var(--code-ink);
+    border: 1px solid var(--hair); white-space: nowrap;
+  }
+  var { font-family: var(--mono); font-style: normal; color: var(--accent-2); font-size: .9em; }
+
+  ul.clean { margin: 0 0 1.1rem; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .6rem; }
+  ul.clean li { padding-left: 1.3rem; position: relative; color: color-mix(in srgb, var(--ink) 90%, var(--ink-soft)); }
+  ul.clean li::before { content: "›"; position: absolute; left: 0; top: -1px; color: var(--accent); font-weight: 700; }
+
+  /* ---------- code block ---------- */
+  figure.code { margin: 1.4rem 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--code-bg); box-shadow: var(--shadow); }
+  figure.code figcaption { font: 500 .72rem/1 var(--mono); color: var(--ink-faint); padding: .55rem .85rem; border-bottom: 1px solid var(--hair); display: flex; justify-content: space-between; gap: 1rem; }
+  figure.code figcaption .path { color: var(--ink-soft); }
+  figure.code pre { margin: 0; padding: .95rem .95rem; overflow-x: auto; }
+  figure.code code { background: none; border: 0; padding: 0; white-space: pre; font-size: .8rem; line-height: 1.6; color: var(--code-ink); }
+  .c-key { color: var(--accent-2); }
+  .c-com { color: var(--ink-faint); font-style: italic; }
+  .c-str { color: var(--good); }
+  .c-fn  { color: var(--stage1); }
+  .c-num { color: var(--warn); }
+
+  /* ---------- callouts ---------- */
+  .call { border-radius: 10px; padding: 1rem 1.15rem; margin: 1.4rem 0; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+  .call .h { font: 600 .68rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; margin: 0 0 .5rem; display: flex; align-items: center; gap: .5rem; }
+  .call p:last-child { margin-bottom: 0; }
+  .call.key { border-left: 3px solid var(--accent); }
+  .call.key .h { color: var(--accent); }
+  .call.watch { border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn-bg) 60%, var(--surface)); }
+  .call.watch .h { color: var(--warn); }
+
+  /* ---------- tables ---------- */
+  .twrap { overflow-x: auto; margin: 1.3rem 0; border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; min-width: 460px; background: var(--surface); }
+  th, td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--hair); vertical-align: top; }
+  thead th { font: 600 .64rem/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); background: var(--surface-2); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td code, th code { white-space: nowrap; }
+  td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); color: var(--accent-2); }
+
+  /* ---------- number strip ---------- */
+  .numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: .6rem; margin: 1.4rem 0; }
+  .numbers div { border: 1px solid var(--line); border-radius: 9px; padding: .8rem .85rem; background: var(--surface); }
+  .numbers .v { font: 700 1.35rem/1 var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+  .numbers .l { font-size: .74rem; color: var(--ink-soft); margin-top: .3rem; }
+
+  /* ---------- Q&A ---------- */
+  .qa { display: flex; flex-direction: column; gap: .7rem; margin: 1.4rem 0; }
+  details.q { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+  details.q > summary { cursor: pointer; list-style: none; padding: .95rem 1.1rem; font-weight: 650; color: var(--ink); display: flex; gap: .7rem; align-items: baseline; }
+  details.q > summary::-webkit-details-marker { display: none; }
+  details.q > summary .qn { font-family: var(--mono); font-size: .72rem; color: var(--accent); flex: 0 0 auto; padding-top: .12rem; }
+  details.q > summary::after { content: "+"; margin-left: auto; color: var(--ink-faint); font-family: var(--mono); font-size: 1.1rem; }
+  details.q[open] > summary::after { content: "–"; }
+  details.q[open] > summary { border-bottom: 1px solid var(--hair); }
+  details.q .a { padding: .95rem 1.1rem 1.05rem; color: color-mix(in srgb, var(--ink) 88%, var(--ink-soft)); font-size: .95rem; }
+  details.q .a p { margin-bottom: .7rem; }
+  details.q .a p:last-child { margin-bottom: 0; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* ---------- footer ---------- */
+  footer { max-width: 1160px; margin: 0 auto; padding: 2.4rem clamp(1rem, 4vw, 2.5rem) 4rem; border-top: 1px solid var(--hair); color: var(--ink-faint); font-size: .82rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer .files { font-family: var(--mono); display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin-top: .7rem; }
+
+  .two { display: grid; gap: 1rem; }
+  @media (min-width: 620px) { .two { grid-template-columns: 1fr 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; background: var(--surface); box-shadow: var(--shadow); }
+  .panel h4 { margin: 0 0 .5rem; font-size: .95rem; display: flex; align-items: center; gap: .5rem; }
+  .panel.s1 h4 { color: var(--stage1); }
+  .panel.s2 h4 { color: var(--stage2); }
+  .panel ul { margin: 0; padding-left: 1.1rem; font-size: .85rem; color: var(--ink-soft); }
+  .panel li { margin-bottom: .35rem; }
+  .dotm { width: .55rem; height: .55rem; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<header class="topbar">
+  <div class="brand"><b>cms-flow-evt</b> <span>/ codebase deep-dive</span></div>
+  <button class="toggle" id="themeBtn" aria-label="Toggle colour theme">
+    <span id="themeIcon">◐</span><span id="themeTxt">Theme</span>
+  </button>
+</header>
+
+<div class="hero">
+  <p class="eyebrow">Interview preparation · Gross group (Weizmann)</p>
+  <h1>One neural pass from truth particles to a reconstructed event.</h1>
+  <p class="lede">
+    This repository trains a <b>two-stage conditional generative model</b> that performs detector
+    <b>simulation and reconstruction simultaneously</b> — mapping generator-level particles to
+    fully reconstructed <b>particle-flow objects</b> for entire CMS events. It is the reference
+    implementation of <b>arXiv:2503.19981</b>, part of the <em>Parnassus</em> fast-simulation programme.
+  </p>
+
+  <dl class="specs">
+    <div class="spec"><dt>Paper</dt><dd>Conditional Deep Generative Models</dd></div>
+    <div class="spec"><dt>arXiv</dt><dd class="mono">2503.19981</dd></div>
+    <div class="spec"><dt>Domain</dt><dd>CMS @ LHC · particle flow</dd></div>
+    <div class="spec"><dt>Method</dt><dd>Flow matching + diffusion ODE</dd></div>
+    <div class="spec"><dt>Backbone</dt><dd>Cross-attention DiT</dd></div>
+    <div class="spec"><dt>Stack</dt><dd class="mono">PyTorch Lightning</dd></div>
+  </dl>
+
+  <div class="schematic" role="img" aria-label="Pipeline: generator particles pass through an event network then a particle network to produce a reconstructed particle-flow event.">
+    <div class="flow">
+      <div class="cloud" aria-hidden="true">
+        <svg viewBox="0 0 84 74"><g class="dot-gen">
+          <circle cx="14" cy="20" r="3.2"/><circle cx="30" cy="12" r="2.4"/><circle cx="22" cy="38" r="2.8"/>
+          <circle cx="42" cy="30" r="3.6"/><circle cx="18" cy="56" r="2.2"/><circle cx="36" cy="52" r="3"/>
+          <circle cx="52" cy="46" r="2.4"/><circle cx="48" cy="16" r="2.2"/>
+        </g></svg>
+      </div>
+      <div class="node"><span class="k">Input</span><span class="t">GEN particles</span><span class="d">truth pₜ, η, φ, vertex, class · variable-length set</span></div>
+      <div class="arrow" aria-hidden="true"><svg viewBox="0 0 26 18"><path d="M2 9h20m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="node s1"><span class="k">Stage 1</span><span class="t">Event net</span><span class="d">samples multiplicity N, Hₜ, MET</span></div>
+      <div class="arrow" aria-hidden="true"><svg viewBox="0 0 26 18"><path d="M2 9h20m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="node s2"><span class="k">Stage 2</span><span class="t">Particle net</span><span class="d">CA-DiT · samples every PF object</span></div>
+      <div class="arrow" aria-hidden="true"><svg viewBox="0 0 26 18"><path d="M2 9h20m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="cloud" aria-hidden="true">
+        <svg viewBox="0 0 84 74"><g class="dot-pf">
+          <circle cx="12" cy="16" r="2.6"/><circle cx="26" cy="10" r="2"/><circle cx="20" cy="30" r="2.4"/>
+          <circle cx="38" cy="22" r="2.8"/><circle cx="14" cy="46" r="2"/><circle cx="30" cy="44" r="2.6"/>
+          <circle cx="46" cy="36" r="2"/><circle cx="42" cy="12" r="2"/><circle cx="56" cy="26" r="2.4"/>
+          <circle cx="52" cy="54" r="2"/><circle cx="34" cy="60" r="2.2"/><circle cx="66" cy="42" r="2"/>
+        </g></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="toc" aria-label="Table of contents">
+    <div class="lbl">Contents</div>
+    <a href="#problem"><span class="num">1</span> The problem</a>
+    <a href="#data"><span class="num">2</span> Data representation</a>
+    <a href="#arch"><span class="num">3</span> Architecture</a>
+    <a href="#method"><span class="num">4</span> The generative method</a>
+    <a href="#training"><span class="num">5</span> Training</a>
+    <a href="#sampling"><span class="num">6</span> Sampling &amp; eval</a>
+    <a href="#map"><span class="num">7</span> Repository map</a>
+    <a href="#cheat"><span class="num">8</span> Interview cheat-sheet</a>
+  </nav>
+
+  <main>
+    <!-- ============ 1 ============ -->
+    <section id="problem">
+      <p class="sec-label"><span class="idx">§1</span> Motivation</p>
+      <h2>Why learn detector simulation and reconstruction at all?</h2>
+      <p>
+        The LHC's high-luminosity era needs orders of magnitude more simulated events than the
+        collaborations can afford with <strong>Geant4</strong> full simulation, where a single event
+        can take minutes. The usual escape hatch is <strong>Delphes</strong> — a fast, <em>parametric</em>
+        detector model — but its hand-tuned smearing and efficiency functions cap how faithfully it can
+        reproduce a real experiment.
+      </p>
+      <p>
+        The <strong>Parnassus</strong> idea is to replace that chain with a single learned surrogate:
+        a generative model trained on full simulation that maps <em>generator-level (truth) particles</em>
+        directly to <em>reconstructed particle-flow objects</em> — collapsing detector response and event
+        reconstruction into one GPU-native step, and generalising beyond any parametric card because it
+        learns the true response from data.
+      </p>
+      <p>This repo is the <strong>event-level</strong> member of that programme:</p>
+      <div class="twrap">
+        <table>
+          <thead><tr><th>Paper</th><th>Scope</th><th>Relation to this repo</th></tr></thead>
+          <tbody>
+            <tr><td class="mono"><code>2406.01620</code></td><td>Original Parnassus — jets, single step</td><td>Conceptual parent</td></tr>
+            <tr><td class="mono"><code>2503.19981</code></td><td><strong>Entire events</strong>, full PF objects (type + vertex)</td><td><strong>This codebase</strong></td></tr>
+            <tr><td class="mono"><code>2606.26089</code></td><td>Parnassus GPU package (CMS/ATLAS/ALEPH)</td><td>Downstream deployment</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="call key">
+        <p class="h">◆ The one-sentence thesis</p>
+        <p>Two conditional flow-matching networks — one for <em>event-level</em> quantities, one for
+        <em>per-particle</em> objects — are trained to sample the distribution of reconstructed events
+        given the truth-level input, and are chained at inference to fast-simulate whole events.</p>
+      </div>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section id="data">
+      <p class="sec-label"><span class="idx">§2</span> Data</p>
+      <h2>How an event is represented</h2>
+      <p>
+        Everything lives in <code>utils/datasetloader.py</code> (<code>FastSimDataset</code>), reading ROOT
+        ntuples with <code>uproot</code>. Each event is two <strong>variable-length, unordered sets</strong>
+        of particles — <var>truth</var> (the conditioning input) and <var>pflow</var> (the reconstruction
+        target) — padded to <code>max_particles = 400</code> with boolean masks.
+      </p>
+      <div class="twrap">
+        <table>
+          <thead><tr><th>Variable</th><th>Meaning</th><th>Encoding</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">pt → ptrel</td><td>transverse momentum</td><td>per-event <code>pt/Hₜ</code></td></tr>
+            <tr><td class="mono">eta</td><td>pseudorapidity</td><td>clamped to ±3, standardised</td></tr>
+            <tr><td class="mono">phi</td><td>azimuth (periodic)</td><td>mapped to <code>(sin, cos)</code></td></tr>
+            <tr><td class="mono">vx, vy, vz</td><td>production vertex</td><td>standardised; neutrals zeroed</td></tr>
+            <tr><td class="mono">class</td><td>particle type</td><td>5-way one-hot</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The five classes are <strong>charged hadrons, electrons, muons, neutral hadrons, photons</strong>
+        (neutrinos and residuals are handled in pre-processing). Alongside the per-particle sets, each event
+        carries <strong>global quantities</strong> — scalar <code>Hₜ</code>, missing-transverse-energy
+        components <code>(MET_x, MET_y)</code>, and multiplicity <code>N</code> — computed for both truth and pflow.
+      </p>
+      <div class="call key">
+        <p class="h">◆ The clever bit — per-event scaling (PES)</p>
+        <p>
+          For each event, the truth kinematics define their own mean/std, and <em>that same transform is
+          applied to the pflow targets</em> (<code>_get_pflow_data</code> reuses <code>truth_vars_scales</code>).
+          The network therefore learns the truth→reco relationship in a <strong>per-event normalised frame</strong>,
+          and the shift/scale values are handed back as conditioning ("scale info"). This is a strong
+          inductive bias worth being able to explain.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section id="arch">
+      <p class="sec-label"><span class="idx">§3</span> Architecture</p>
+      <h2>Two specialised networks, trained separately</h2>
+      <p>
+        The decomposition is deliberate: event-level totals are global and low-dimensional, so a small
+        network fixes <em>how many</em> particles and <em>how much</em> energy first; the heavy set-generation
+        network then produces <em>what each particle is</em>, conditioned on those totals.
+      </p>
+
+      <h3><span class="tag t1">Stage 1</span> Event network — <code>FlowNumPFNet</code></h3>
+      <p>
+        In <code>models/flow_npf_model.py</code>. Truth particles are embedded and
+        <strong>mean-pooled</strong> (permutation-invariant); concatenated with the embedded global data and
+        a sinusoidal <strong>time embedding</strong> to form a context vector. A 4-dimensional noisy vector
+        <code>(Hₜ, N, MET_x, MET_y)</code> is modulated by that context (<strong>adaLN</strong>), passed
+        through residual blocks, and mapped to a velocity. Small and quick: <code>hidden_dim 128</code>,
+        <code>3</code> residual blocks, GELU.
+      </p>
+
+      <h3><span class="tag t2">Stage 2</span> Particle network — <code>FlowNet</code> (CA-DiT)</h3>
+      <p>
+        In <code>models/flow_model.py</code> — the core of the paper. It runs <strong>two token streams</strong>:
+        the truth particles and the noisy pflow particles. Each <code>CABlock</code> (there are
+        <code>num_dit_layers = 8</code>) performs <strong>bidirectional cross-attention</strong> — the pflow
+        stream attends to truth, and truth attends back to pflow (all but the final block) — with the context
+        vector driving a DiT-style <strong>adaLN-Zero</strong> modulation (six shift/scale/gate terms per block).
+      </p>
+      <ul class="clean">
+        <li><strong>Cross-attention</strong> via <code>models/attention.py</code> — PyTorch <code>FlexAttention</code> with per-head <strong>QK-norm</strong>, padding masks so padded tokens never <em>send</em> information.</li>
+        <li><strong>adaLN-Zero:</strong> modulation layers are zero-initialised (<code>initialize_weights</code>), so every block starts as the identity — the DiT stability trick.</li>
+        <li><strong>RMSNorm</strong> + gated-GLU MLPs; <code>hidden_dim 96</code>, <code>6</code> heads, SiLU.</li>
+        <li>Context = <code>concat[</code> pooled-truth summary, global embedding, time embedding <code>]</code> — dimension <code>3 × hidden</code>.</li>
+      </ul>
+
+      <figure class="code">
+        <figcaption><span>the DiT modulation inside a cross-attention block</span><span class="path">models/flow_model.py</span></figcaption>
+<pre><code>shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = \
+    self.adaLN_modulation(ctxt).chunk(<span class="c-num">6</span>, dim=-<span class="c-num">1</span>)
+
+seq_q = seq_q + gate_msa.unsqueeze(<span class="c-num">1</span>) * self.attn(
+    x  = modulate(self.norm1(seq_q), shift_msa, scale_msa),  <span class="c-com"># pflow queries</span>
+    kv = self.norm_k(seq_k),                                 <span class="c-com"># truth keys/values</span>
+    kv_mask = mask_k,
+)</code></pre>
+      </figure>
+
+      <div class="two">
+        <div class="panel s1"><h4><span class="dotm" style="background:var(--stage1)"></span> Event net facts</h4>
+          <ul>
+            <li>output: 4 scalars <code>Hₜ, N, MET_x, MET_y</code></li>
+            <li>flow variant: <code>TargetCFM</code></li>
+            <li>sampler: PNDM · <code>25</code> steps</li>
+            <li>power-law time sampling (<code>time_pow</code>)</li>
+          </ul>
+        </div>
+        <div class="panel s2"><h4><span class="dotm" style="background:var(--stage2)"></span> Particle net facts</h4>
+          <ul>
+            <li>output: 7 features per particle × up to 400</li>
+            <li>flow variant: <code>ReverseCFM</code></li>
+            <li>sampler: DPM-Solver · <code>10–40</code> steps</li>
+            <li>bidirectional CA-DiT, 8 layers</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section id="method">
+      <p class="sec-label"><span class="idx">§4</span> The method</p>
+      <h2>Flow matching, and the bridge to diffusion</h2>
+      <p>
+        Both networks are trained by <strong>conditional flow matching</strong>: rather than denoising, the
+        network learns a <strong>velocity field</strong> <var>v(x, t)</var> that transports Gaussian noise
+        <var>x₀</var> to data <var>x₁</var> along a straight probability path. Training is
+        <em>simulation-free</em> — you sample a time, form the interpolant, and regress onto a closed-form
+        target velocity. No adversary, no ELBO.
+      </p>
+      <figure class="code">
+        <figcaption><span>one training step — the whole objective</span><span class="path">fs_lightning.py · forward()</span></figcaption>
+<pre><code>x0 = torch.randn_like(pflow)                       <span class="c-com"># noise</span>
+t, xt, ut, _ = self.FM.sample_location_and_conditional_flow(
+    x0, pflow, return_noise=<span class="c-key">True</span>)              <span class="c-com"># interpolant xt, target velocity ut</span>
+vt   = self.net(xt, truth, mask, timestep=t, global_data=global_data)
+loss = self.loss(ut * pf_mask, vt * pf_mask) / pf_mask.sum() / ut.shape[-<span class="c-num">1</span>]</code></pre>
+      </figure>
+      <p>
+        The two stages use different straight paths — <code>utils/conditional_flow_matching.py</code> defines
+        <strong>ReverseCFM</strong> (particles: <var>u_t = x₀ − x₁</var>) and <strong>TargetCFM</strong>
+        (events, Lipman-style optimal-transport path). Stage 2 adds a cosine <strong>direction term</strong>
+        to the MSE so predicted and target velocities also agree in <em>orientation</em>.
+      </p>
+      <div class="call key">
+        <p class="h">◆ Why a diffusion solver samples a flow-matching model</p>
+        <p>
+          The sampler in <code>models/dpm.py</code> uses <code>NoiseScheduleFlow</code> with
+          <var>α_t = 1 − t</var>, <var>σ_t = t</var> — the linear / <strong>rectified-flow</strong> schedule.
+          Under it the flow-matching ODE and the diffusion probability-flow ODE coincide, so the learned
+          velocity can be fed to a <strong>DPM-Solver</strong> after a one-line wrapper converts velocity to
+          the data-prediction form the solver expects. That is the whole "flows ↔ diffusion" trick, and it is
+          why the repo can use a high-order diffusion integrator on a flow-matching network.</p>
+      </div>
+      <figure class="code">
+        <figcaption><span>velocity → data-prediction wrapper handed to DPM-Solver</span><span class="path">eval.py</span></figcaption>
+<pre><code><span class="c-key">def</span> <span class="c-fn">model_fn</span>(x, timestep, truth, mask, global_data):
+    <span class="c-key">return</span> (<span class="c-num">1</span> - timestep.view(-<span class="c-num">1</span>,<span class="c-num">1</span>,<span class="c-num">1</span>)) * net.net(x, truth, mask, timestep, global_data) + x
+
+sampler = DPM_Solver(model_fn=model_fn, noise_schedule=NoiseScheduleFlow())</code></pre>
+      </figure>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section id="training">
+      <p class="sec-label"><span class="idx">§5</span> Training</p>
+      <h2>Loss, optimiser, and a subtle train/val split</h2>
+      <p>
+        <code>train.py</code> builds a PyTorch-Lightning module chosen by <code>train_type</code>
+        (<code>evt</code> → event net, else particle net) and calls <code>trainer.fit</code>. Optimiser is
+        <strong>Lion</strong> at <code>3e-5</code> with cosine-annealing warm restarts, gradient clipping, and
+        <strong>Stochastic Weight Averaging</strong>; logging via Comet.
+      </p>
+      <div class="call watch">
+        <p class="h">▲ A distinction interviewers may probe</p>
+        <p>
+          The <strong>training loss is velocity regression</strong> applied <em>position-wise</em> — flow
+          matching pairs each noised sample with its own target by index, so no set-matching is needed at
+          train time. The permutation-invariant <strong>Set2SetLoss</strong> (Hungarian assignment via
+          <code>scipy.linear_sum_assignment</code>) is a <em>validation-only</em> metric: it runs the full
+          ODE sampler, then matches generated to true particles on <code>pt/eta/phi</code>. Don't call it the
+          training objective.</p>
+      </div>
+      <div class="two">
+        <div class="panel"><h4>Train signal</h4>
+          <ul>
+            <li>Stage 1: per-component <code>MSE</code> on the 4 event scalars</li>
+            <li>Stage 2: <code>MSE + (1 − cosine)</code>, masked to real particles</li>
+            <li>targets are analytic flow-matching velocities</li>
+          </ul>
+        </div>
+        <div class="panel"><h4>Validation signal</h4>
+          <ul>
+            <li>generate with the ODE sampler, then compare</li>
+            <li>Stage 2: Hungarian-matched Set2Set on kinematics</li>
+            <li>Stage 1: MSE on Hₜ / N / MET</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section id="sampling">
+      <p class="sec-label"><span class="idx">§6</span> Inference</p>
+      <h2>Chaining the two stages at generation time</h2>
+      <p>
+        <code>eval.py</code> is where the stages meet — and the linkage lives here, not inside either network:
+      </p>
+      <ul class="clean">
+        <li><strong>Stage 1</strong> (<code>FlowNumPFLightning.sample</code>, <strong>PNDM</strong> — a 4th-order pseudo-numerical integrator in <code>models/sampler.py</code>) samples <code>N, Hₜ, MET</code> for each event.</li>
+        <li>Those predictions build the <strong>particle mask</strong> (setting the generated multiplicity) and are concatenated into the Stage-2 <strong>global conditioning</strong>.</li>
+        <li><strong>Stage 2</strong> (<strong>DPM-Solver</strong>, multistep order-2, <code>time_uniform_flow</code> schedule) integrates the velocity field from noise to the reconstructed PF objects.</li>
+        <li>Outputs are inverse-transformed (<code>class</code> via <code>argmax</code>, <code>φ</code> back from sin/cos) and written to a ROOT <code>evt_tree</code> with <code>truth</code> and <code>pflow</code> branches.</li>
+      </ul>
+      <div class="call key">
+        <p class="h">◆ The mental model</p>
+        <p>Stage 1 answers "<em>how many particles and how much energy</em>"; Stage 2 answers "<em>what is
+        each particle</em>", conditioned on Stage 1's answer plus the truth particles. Integrating a learned
+        ODE from Gaussian noise turns both questions into samples from the correct conditional distribution.</p>
+      </div>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section id="map">
+      <p class="sec-label"><span class="idx">§7</span> Orientation</p>
+      <h2>Repository map</h2>
+      <div class="twrap">
+        <table>
+          <thead><tr><th>Path</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">train.py</td><td>Lightning entry; picks the module by <code>train_type</code></td></tr>
+            <tr><td class="mono">eval.py</td><td>Chains event → particle nets; writes ROOT output</td></tr>
+            <tr><td class="mono">fs_lightning.py</td><td>Stage-2 module: FM loss, DPM sampling, Set2Set val</td></tr>
+            <tr><td class="mono">fs_npf_lightning.py</td><td>Stage-1 module: event-net training / sampling</td></tr>
+            <tr><td class="mono">models/flow_model.py</td><td><code>FlowNet</code> — the CA-DiT particle network</td></tr>
+            <tr><td class="mono">models/flow_npf_model.py</td><td><code>FlowNumPFNet</code> — the event network</td></tr>
+            <tr><td class="mono">models/attention.py</td><td>Multi-head / cross / Flex attention, QK-norm</td></tr>
+            <tr><td class="mono">models/dpm.py</td><td>DPM-Solver(++) + <code>NoiseScheduleFlow</code></td></tr>
+            <tr><td class="mono">models/sampler.py</td><td>PNDM pseudo-numerical ODE sampler</td></tr>
+            <tr><td class="mono">utils/conditional_flow_matching.py</td><td>Reverse / Target / OT flow-matching paths</td></tr>
+            <tr><td class="mono">set2setloss.py</td><td>Hungarian-matched permutation-invariant metric</td></tr>
+            <tr><td class="mono">utils/datasetloader.py</td><td><code>FastSimDataset</code> — ROOT loading, PES, masks</td></tr>
+            <tr><td class="mono">configs/part.yaml · evt.yaml</td><td>Stage-2 / Stage-1 hyperparameters</td></tr>
+            <tr><td class="mono">convert_edm4hep_to_ntuple.py</td><td>EDM4hep → training ntuple (future colliders)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 8 ============ -->
+    <section id="cheat">
+      <p class="sec-label"><span class="idx">§8</span> Interview cheat-sheet</p>
+      <h2>Questions you can expect — and strong answers</h2>
+
+      <div class="numbers" aria-label="Key numbers to memorise">
+        <div><div class="v">400</div><div class="l">max particles / event</div></div>
+        <div><div class="v">8</div><div class="l">CA-DiT layers</div></div>
+        <div><div class="v">6</div><div class="l">attention heads</div></div>
+        <div><div class="v">96/128</div><div class="l">hidden dim (part/evt)</div></div>
+        <div><div class="v">5</div><div class="l">particle classes</div></div>
+        <div><div class="v">3e-5</div><div class="l">Lion learning rate</div></div>
+      </div>
+
+      <div class="qa">
+        <details class="q" open>
+          <summary><span class="qn">Q1</span> Why generative models instead of a regression network?</summary>
+          <div class="a">
+            <p>Detector response and reconstruction are <strong>stochastic and one-to-many</strong>: a given
+            truth configuration maps to a <em>distribution</em> of possible reconstructions (resolution smearing,
+            efficiency losses, track–cluster splitting and merging). A generative model samples
+            <var>p(reco | truth)</var>, preserving resolutions and correlations. A plain regressor would
+            collapse to the conditional mean and wash those out.</p>
+          </div>
+        </details>
+        <details class="q">
+          <summary><span class="qn">Q2</span> Why flow matching rather than diffusion, GANs, or VAEs?</summary>
+          <div class="a">
+            <p>Flow matching trains by regressing a <strong>closed-form velocity</strong> — stable, mode-covering,
+            no adversarial collapse and no ELBO slack. Straight probability paths make sampling cheap
+            (few function evaluations). And because the model is just a velocity field, it slots straight into
+            ODE solvers — here they reuse a <strong>diffusion DPM-Solver</strong> through a rectified-flow schedule
+            (<var>α=1−t, σ=t</var>), getting high-order integration for free.</p>
+          </div>
+        </details>
+        <details class="q">
+          <summary><span class="qn">Q3</span> Why split it into two networks?</summary>
+          <div class="a">
+            <p>The event-level quantities (multiplicity, <code>Hₜ</code>, MET) are <strong>global and
+            low-dimensional</strong>. Generating them first fixes the <em>set cardinality</em> and provides
+            strong global conditioning, decoupling "how many / how much" from "what each particle is." It also
+            lets each network be small and specialised, and keeps the hard set-generation problem cleanly
+            conditioned.</p>
+          </div>
+        </details>
+        <details class="q">
+          <summary><span class="qn">Q4</span> How do you handle variable-length, unordered particle sets?</summary>
+          <div class="a">
+            <p>Pad to <code>400</code> with masks; the particle network is <strong>permutation-equivariant</strong>
+            (attention, no positional encoding). Training loss is position-wise because flow matching pairs
+            noise↔target by index. The <em>evaluation</em> metric is permutation-invariant — a
+            <strong>Hungarian assignment</strong> (Set2Set) between generated and true particles.</p>
+          </div>
+        </details>
+        <details class="q">
+          <summary><span class="qn">Q5</span> What exactly conditions the particle network?</summary>
+          <div class="a">
+            <p>Four things, fused through DiT adaLN: (1) the <strong>truth particles</strong> as
+            cross-attention keys/values, (2) a <strong>permutation-invariant pooled</strong> truth summary,
+            (3) the Stage-1 <strong>event-level</strong> <code>N, Hₜ, MET</code> plus per-event scale info in
+            the global vector, and (4) the diffusion <strong>time</strong> embedding.</p>
+          </div>
+        </details>
+        <details class="q">
+          <summary><span class="qn">Q6</span> How are particle type and production vertex produced?</summary>
+          <div class="a">
+            <p>Jointly with the kinematics. <strong>Class</strong> is a 5-way one-hot generated as continuous
+            logits and <code>argmax</code>-ed at sampling; the <strong>vertex</strong> <code>(vx,vy,vz)</code>
+            are continuous outputs (neutral particles have their vertex zeroed in pre-processing). Generating
+            type and vertex is exactly what extends Parnassus from jets to full PF objects.</p>
+          </div>
+        </details>
+        <details class="q">
+          <summary><span class="qn">Q7</span> What would you improve or study next? <em>(shows depth)</em></summary>
+          <div class="a">
+            <p>Concrete, defensible directions:</p>
+            <p>• <strong>Sampling efficiency</strong> — the step counts and integrators are fixed heuristics;
+            since the model is a velocity field, one can swap in adaptive solvers or distil to very few steps
+            with no retraining, and measure the Wasserstein/observable cost vs. NFE.</p>
+            <p>• <strong>Two-stage error propagation</strong> — Stage-1 multiplicity/energy mistakes bias
+            Stage 2; worth quantifying and possibly jointly fine-tuning.</p>
+            <p>• <strong>Physics closure &amp; calibration</strong> — coverage of tails and inter-particle
+            correlations, jet-level and MET observables, and per-event uncertainty.</p>
+            <p>• <strong>Conditioning &amp; scope</strong> — pileup, richer event context, and generalisation
+            across processes beyond the training set.</p>
+          </div>
+        </details>
+        <details class="q">
+          <summary><span class="qn">Q8</span> Where does this sit relative to Delphes and full sim?</summary>
+          <div class="a">
+            <p>It is trained on <strong>full-simulation</strong> CMS Open Sim, so it learns the true detector +
+            reconstruction response rather than a parametric approximation — the paper shows it generalising
+            <em>beyond</em> Delphes across several LHC processes, while remaining fast and GPU-native. The
+            downstream <code>parnassus</code> package then wraps such trained models into an end-to-end tool.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div>Study aid compiled from a direct read of the <code>cms-flow-evt</code> source. Cross-references:
+  <a href="ARCHITECTURE_MERMAID_MAPPING.md">architecture ↔ code</a>,
+  <a href="ARCHITECTURE_TRAINING_MAPPING.md">training path</a>,
+  <a href="PARNASSUS_VS_CMS_FLOW_EVT.md">vs. the Parnassus package</a>.</div>
+  <div class="files">
+    <span>train.py</span><span>eval.py</span><span>fs_lightning.py</span><span>fs_npf_lightning.py</span>
+    <span>models/flow_model.py</span><span>models/dpm.py</span><span>utils/conditional_flow_matching.py</span>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeBtn');
+    var txt = document.getElementById('themeTxt');
+    function apply(mode) {
+      if (mode === 'system') { root.removeAttribute('data-theme'); }
+      else { root.setAttribute('data-theme', mode); }
+      var effective = mode === 'system'
+        ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : mode;
+      txt.textContent = effective === 'dark' ? 'Dark' : 'Light';
+    }
+    var pref = 'system';
+    apply(pref);
+    btn.addEventListener('click', function () {
+      var cur = root.getAttribute('data-theme');
+      var eff = cur || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      apply(eff === 'dark' ? 'light' : 'dark');
+    });
+
+    // scroll progress
+    var bar = document.getElementById('progress');
+    function onScroll() {
+      var h = document.documentElement;
+      var max = h.scrollHeight - h.clientHeight;
+      bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+    }
+    addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    // active TOC via IntersectionObserver
+    var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+    var map = {};
+    links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          links.forEach(function (l) { l.classList.remove('active'); });
+          var a = map[e.target.id];
+          if (a) a.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { obs.observe(s); });
+  })();
+</script>
+</body>
+</html>
