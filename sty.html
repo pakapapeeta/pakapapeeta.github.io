@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postdoc tracker — Amresh Verma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F6F3; --card:#FFFFFF; --ink:#1C2A2F; --muted:#5E6E72; --line:#D5DBD6;
+  --blue:#2C4F9E; --amber:#B8791C; --moss:#4A7A48; --rust:#9E463C; --slate:#6B7C84;
+  --blue-soft:#E4EAF7; --amber-soft:#F7ECD8; --moss-soft:#E3EEE2; --rust-soft:#F4E1DE; --slate-soft:#E6EAEC;
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--ink);font-size:15px;line-height:1.5}
+a{color:var(--blue)}
+header{padding:28px 20px 8px;max-width:1080px;margin:0 auto}
+h1{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:clamp(28px,4.5vw,40px);margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+.lede strong{color:var(--ink);font-weight:600}
+
+/* deadline runway */
+.runway{max-width:1080px;margin:22px auto 0;padding:0 20px}
+.runway h2{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:20px;margin:0 0 26px}
+.track{position:relative;height:78px;border-bottom:2px solid var(--ink);margin:0 4px}
+.tick{position:absolute;bottom:-2px;transform:translateX(-50%);text-align:center}
+.tick .dot{width:12px;height:12px;border-radius:50%;background:var(--blue);margin:0 auto;border:2px solid var(--paper)}
+.tick .lbl{position:absolute;max-width:150px;overflow:hidden;text-overflow:ellipsis;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;line-height:1.25;bottom:16px}
+.tick .lbl b{display:block;font-weight:600}
+.tick .lbl span{color:var(--muted)}
+.tick.soon .dot{background:var(--amber)}
+.tick.past .dot{background:var(--slate)}
+.tick.today .dot{background:var(--ink);width:4px;height:78px;border-radius:0;border:0}
+.tick.today .lbl{bottom:auto;top:-18px;font-weight:600;font-size:11px}
+.months{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:4px 4px 0}
+
+/* controls */
+.controls{max-width:1080px;margin:26px auto 0;padding:0 20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.search{flex:1 1 220px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;font:inherit;background:var(--card)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip:focus-visible,.search:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.count{color:var(--muted);font-size:13px;margin-left:auto}
+
+/* groups and rows */
+main{max-width:1080px;margin:0 auto;padding:16px 20px 60px}
+.group{margin-top:26px}
+.group h2{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:22px;margin:0 0 4px;display:flex;align-items:baseline;gap:10px}
+.group h2 small{font-family:"IBM Plex Sans",sans-serif;font-size:13px;color:var(--muted);font-weight:400}
+.group p.why{margin:0 0 12px;color:var(--muted);font-size:13px}
+.row{background:var(--card);border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+.row summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:minmax(0,2.2fr) 130px minmax(0,1.6fr) 110px;gap:14px;align-items:center;padding:12px 14px}
+.row summary::-webkit-details-marker{display:none}
+.row[open] summary{border-bottom:1px solid var(--line)}
+.name{font-weight:600}
+.role{color:var(--muted);font-size:13px;display:block}
+.stage{display:inline-block;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.stage[data-s="Submitted"]{background:var(--moss-soft);color:var(--moss)}
+.stage[data-s="In progress"]{background:var(--blue-soft);color:var(--blue)}
+.stage[data-s="Waiting on reply"]{background:var(--amber-soft);color:var(--amber)}
+.stage[data-s="Draft ready"]{background:var(--slate-soft);color:var(--slate)}
+.stage[data-s="Planned"]{background:var(--slate-soft);color:var(--slate)}
+.stage[data-s="Closed"]{background:var(--rust-soft);color:var(--rust)}
+.next{font-size:13.5px}
+.due{font-size:13px;text-align:right}
+.due b{display:block;font-weight:600}
+.due.soon b{color:var(--amber)}
+.due.past b{color:var(--slate)}
+.body{padding:12px 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:13.5px}
+.body dt{color:var(--muted);font-size:12px;margin-bottom:2px}
+.body dd{margin:0 0 8px}
+.body .wide{grid-column:1/-1}
+.body select,.body textarea{font:inherit;font-size:13.5px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;width:100%}
+.body textarea{min-height:56px;resize:vertical}
+.hook{color:var(--muted)}
+
+/* referees + footer */
+aside.refs{max-width:1080px;margin:36px auto 0;padding:0 20px}
+aside.refs h2{font-family:Fraunces,Georgia,serif;font-weight:500;font-size:20px;margin:0 0 8px}
+aside.refs ul{margin:0;padding-left:18px;font-size:13.5px}
+.save{position:sticky;bottom:0;background:linear-gradient(transparent,var(--paper) 40%);padding:18px 20px 14px;max-width:1080px;margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--ink);color:#fff;border:0;border-radius:6px;padding:10px 16px;font:inherit;font-weight:500;cursor:pointer}
+.btn.quiet{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.savenote{font-size:12.5px;color:var(--muted)}
+.empty{color:var(--muted);padding:20px 0}
+
+@media (max-width:760px){
+  .row summary{grid-template-columns:1fr auto;grid-template-areas:"name due" "stage stage" "next next";gap:6px 10px}
+  .row summary .name-cell{grid-area:name}.row summary .stage-cell{grid-area:stage}.row summary .next{grid-area:next}.row summary .due{grid-area:due}
+  .body{grid-template-columns:1fr}
+  .count{margin-left:0}
+  .save{position:static}
+}
+@media (prefers-reduced-motion:no-preference){.row summary{transition:background .15s}.row summary:hover{background:#FAFBF9}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Postdoc applications</h1>
+  <p class="lede" id="lede"></p>
+</header>
+
+<section class="runway" aria-label="Upcoming deadlines">
+  <h2>Coming up</h2>
+  <div class="track" id="track"></div>
+  <div class="months" id="months"></div>
+</section>
+
+<section class="controls">
+  <input class="search" id="q" type="search" placeholder="Search names, people, institutions…" aria-label="Search">
+  <div class="chips" id="trackChips" role="group" aria-label="Track"></div>
+  <div class="chips" id="stageChips" role="group" aria-label="Stage"></div>
+  <span class="count" id="count"></span>
+</section>
+
+<main id="main"></main>
+
+<aside class="refs">
+  <h2>Referees</h2>
+  <ul>
+    <li>Prof. Ido Ben-Dayan — PhD advisor, Ariel University (ido.bendayan@gmail.com). Letters sent directly to KEK and uploaded to ICTP-AP.</li>
+    <li>Dr. Thomas Konstandin — DESY Hamburg, visit host Sept–Nov 2025. Standing verbal yes; letter uploaded to ICTP-AP. MSCA-PF hosting ask drafted, not sent.</li>
+    <li>Dr. Meir Shimon — Tel Aviv University (meirshimon595@gmail.com). Letters sent to KEK and uploaded to ICTP-AP. Exact title still to confirm.</li>
+    <li>Dr. Marek Biesiada — NCBJ Warsaw. Potential future referee; now a likely grant-funded host.</li>
+    <li>Due next: NAOJ upload links arrive after the initial form (Kohri can't referee); IPMU AJO links go out by early October.</li>
+  </ul>
+</aside>
+
+<div class="save">
+  <button class="btn" id="dl">Download updated tracker</button>
+  <button class="btn quiet" id="reset">Discard edits</button>
+  <span class="savenote">Stage and notes are editable inside each entry. Download writes a fresh copy of this file with your edits baked in.</span>
+</div>
+
+<script id="data" type="application/json">
+[
+{
+"n": "KEK Theory Center",
+"r": "Researcher 26-2 · KAKENHI A01 (Yuko Urakawa)",
+"t": "Academic",
+"s": "Submitted",
+"d": null,
+"c": "Yuko Urakawa",
+"last": "2026-08 — full package submitted; receipt confirmed",
+"next": "Wait. JSPS Postdoctoral Fellowship second round: ~April 2027 host deadline",
+"note": "Call had officially closed but she was still seeking a candidate. Start date not a problem. Utkarsh Kumar also applying. Letters from Ben-Dayan and Shimon sent directly to her."
+},
+{
+"n": "ICTP-AP Beijing",
+"r": "Postdoc with Jun Zhang",
+"t": "Academic",
+"s": "In progress",
+"d": null,
+"c": "Jun Zhang · zhangjun@ucas.ac.cn",
+"last": "21 Sep — Zhang replied apologising for the delay, asked if you're still interested and requested your CV and publication list",
+"next": "Reply confirming interest; attach CV and publication list",
+"note": "All three letters uploaded (Konstandin, Ben-Dayan, Shimon)."
+},
+{
+"n": "APCTP",
+"r": "Postdoc with Albert Escrivà",
+"t": "Academic",
+"s": "Waiting on reply",
+"d": null,
+"c": "Albert Escrivà",
+"last": "Applied 13 Jul 2026; status-nudge email drafted 20 Aug",
+"next": "Send or re-send the status nudge (ask only for status, no re-pitch)",
+"note": "Application version of the PBH-facing research statement proposes joining as the group's inference and forecasting specialist."
+},
+{
+"n": "CNRS / LUX Paris",
+"r": "Postdoc, EoR data analysis (UMR8262-ELIBLA-005), 24 mo, start 1 Jan 2027",
+"t": "Academic",
+"s": "In progress",
+"d": "2026-09-10",
+"c": "Florent Mertens",
+"last": "Cover letter + research statement v4 built around excess-component separability",
+"next": "Confirm whether it went in before the 10 Sep close; if so, start the pre-interview reading list (Kern & Liu 2021; Mertens 2018, 2020; ML-GPR MNRAS 527; Hothi 2021)",
+"note": "Three numbers needed verifying before submission: the two LOFAR limit values and their k, the coherence-scale shift values and source papers, and whether ps_eor is the current release. States openly no radio-interferometry experience."
+},
+{
+"n": "University of Birmingham",
+"r": "Research Fellow in Nanohertz GWs (ref 107797, Grade 7, to Aug 2029)",
+"t": "Academic",
+"s": "In progress",
+"d": "2026-09-30",
+"c": "Alberto Vecchio; Bence Bécsy (b.becsy@bham.ac.uk, advertised contact)",
+"last": "Cold email to Vecchio drafted; informal-enquiry email to Bécsy drafted",
+"next": "Send the enquiry, then submit. Highest-priority live application",
+"note": "PTA anisotropy / Bayesian astrostatistics overlap with Vecchio, Mandel, Veitch. Hook: model misspecification in PTA recovery templates."
+},
+{
+"n": "ISTA — Sirius Fellowship",
+"r": "Independent fellowship, host Zoltan Haiman · interviews 16–18 Nov · start Sept 2027",
+"t": "Fellowship",
+"s": "In progress",
+"d": "2026-10-15",
+"c": "Zoltan Haiman",
+"last": "Haiman agreed to be named as host (a formality for this scheme); expects to advertise his own postdocs on AAS/EAS registers",
+"next": "Read the Sirius Guide for Applicants; draft the application",
+"note": "He declined to discuss research plans at this stage; open to projects if selected. Watch for his group's own advert as a parallel track."
+},
+{
+"n": "NUS Singapore — AI4S / AI4GW",
+"r": "Postdoc (Alvin Chua, Li Cheng, Alexandre Thiery, David Nott)",
+"t": "Academic",
+"s": "In progress",
+"d": "2026-10-31",
+"c": "ai4gw.nus@gmail.com",
+"last": "Cover letter and research statement drafted",
+"next": "Resolve Li Cheng's actual research focus (name disambiguation), then submit",
+"note": "Hooked on Nott's misspecification-robust SBI and Chua's neural-posterior GW inference; GW comb as secondary hook only."
+},
+{
+"n": "Kavli IPMU",
+"r": "Postdoc (AJO)",
+"t": "Academic",
+"s": "In progress",
+"d": "2026-11-15",
+"c": "AJO portal",
+"last": "Requirements noted: three letters uploaded via AJO",
+"next": "Send AJO upload links to referees by early October",
+"note": "Letters emailed to Urakawa don't carry over. Kohri holds concurrent KEK and IPMU roles, so keep the KEK, IPMU and NAOJ research statements consistent."
+},
+{
+"n": "CCAPP, Ohio State",
+"r": "Postdoc fellowship",
+"t": "Academic",
+"s": "In progress",
+"d": "2026-11-23",
+"c": "David Weinberg (incoming director; weinberg.21@osu.edu); Tom Giblin",
+"last": "Final email to Giblin sent — asks about causal k³ IR slope / finite-volume contamination and a referral",
+"next": "Email Weinberg by ~26 Sept whether or not Giblin replies",
+"note": "Giblin can't supervise or fund but is open to collaboration. Statement framing: three handles — DESI/BAO overlap, SGWB/ΔN_eff overlap with Giblin's preheating work, differentiable inference infrastructure."
+},
+{
+"n": "Michigan MIDAS — Schmidt AI in Science",
+"r": "Fellowship · start Aug–Sept 2027 (backstop)",
+"t": "Fellowship",
+"s": "In progress",
+"d": "2026-11-23",
+"c": "Dragan Huterer (primary mentor); Camille Avestruz (AI co-mentor)",
+"last": "Huterer replied 24 Aug: not hiring (tight funding) — but that was to a group-funded inquiry",
+"next": "Send the short re-approach: Schmidt pays the fellow's salary, mentors carry only research costs",
+"note": "Assessed as a genuine technical fit. Late start makes it a backstop, not a primary."
+},
+{
+"n": "KASI / CosKASI, Daejeon",
+"r": "KASI fellowship (in talks with Parkinson) · also second EACOA host",
+"t": "Academic",
+"s": "Waiting on reply",
+"d": "2026-12-11",
+"c": "David Parkinson (davidparkinson@kasi.re.kr); Arman Shafieloo (shafieloo@kasi.re.kr); Chandra Shekhar Saraf (postdoc in the group)",
+"last": "In talks with Parkinson about a KASI fellowship; asked him to endorse the joint ASIAA + KASI EACOA plan. Parkinson will have Chandra arrange an online group seminar",
+"next": "Wait for Parkinson's endorsement; schedule the online seminar with Chandra",
+"note": "Chandra's time at KASI is ending. Deadline shown is last cycle's December round (11 Dec 2025) — verify this year's."
+},
+{
+"n": "SJTU / TDLI — Jiao-Chuang Global Doctoral Forum",
+"r": "Forum 23–25 Oct 2026, Minhang campus, invited by Shao-Feng Ge",
+"t": "Visit",
+"s": "Closed",
+"d": null,
+"c": "Shao-Feng Ge; secretariat Irene Shu (irene_shu@sjtu.edu.cn)",
+"last": "Not selected — Ge put the application to the SJTU Graduate School but it didn't get through",
+"next": "—",
+"note": "Ge stays a live TDLI contact (see TDLI entry)."
+},
+{
+"n": "TDLI, Shanghai — cold outreach",
+"r": "Postdoc enquiries",
+"t": "Academic",
+"s": "Waiting on reply",
+"d": null,
+"c": "Zhen Pan, Yifan Chen, Wenyuan Ai, Yuichiro Nakai, Jiaxin Han (+ Ge, above)",
+"last": "Zhen Pan replied: positions open in the fall round",
+"next": "Apply when the autumn TDLI call opens; ask Ge separately whether he has grant-funded positions on a different timeline",
+"note": "Zhen Pan: positions open in the fall round. Possible pitch for Ge: cosmic gravitational focusing breaking the neutrino-mass / non-thermal-relic degeneracy. Separate SJTU Astronomy enquiry (Jiaxin Han / Wenting Wang) drafted."
+},
+{
+"n": "Tsinghua Astronomy, Beijing",
+"r": "Postdoc enquiry, GW astronomy group",
+"t": "Academic",
+"s": "Waiting on reply",
+"d": null,
+"c": "Huan Yang",
+"last": "Straight-enquiry email sent (framed on GW model misspecification, available early 2027)",
+"next": "Nudge if quiet",
+"note": "Other relevant faculty: Yi Mao (21cm), Cheng Zhao (DESI/MUST), Di Li (chair)."
+},
+{
+"n": "NCBJ Warsaw",
+"r": "Grant-funded postdoc (2 positions, strong lensing of GWs) · Ulam NAWA as fallback",
+"t": "Fellowship",
+"s": "Draft ready",
+"d": null,
+"c": "Marek Biesiada",
+"last": "Second reply: Biesiada has submitted a grant with two postdoc positions on strong lensing of transient sources (mainly GW CBCs), geometric- and wave-optics regimes; asked for the PTA/CMB-S4 paper; offered an NCBJ seminar ~early 2027 and an in-person visit",
+"next": "Send the drafted reply with the paper: proposes the geometric/wave-optics boundary as a first project (template bias in lens mass/redshift while the Bayes factor stays healthy) and asks the grant decision date and start dates",
+"note": "Reply says openly you haven't worked on lensing. NCBJ colleague Paweł Bielewicz (CMB-S4 pipelines) flagged as a connection. Ulam NAWA next call ~May 2027."
+},
+{
+"n": "University of Warsaw",
+"r": "Postdoc / Ulam hosting enquiry",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Marek Lewicki (marek.lewicki@fuw.edu.pl)",
+"last": "Email redrafted to lead on the PTA/CMB extra-radiation and reheating-EoS results",
+"next": "Send",
+"note": "Overlaps his Sonata Bis work on reheating, phase transitions, PBH-domination GW spectra."
+},
+{
+"n": "Cambridge KICC",
+"r": "Postdoc enquiry",
+"t": "Academic",
+"s": "Waiting on reply",
+"d": null,
+"c": "Will Handley",
+"last": "Cold email sent; nudge drafted",
+"next": "Send the nudge",
+"note": ""
+},
+{
+"n": "Aarhus University",
+"r": "Postdoc enquiry",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Steen Hannestad",
+"last": "Cold email drafted",
+"next": "Send",
+"note": ""
+},
+{
+"n": "Tufts Institute of Cosmology",
+"r": "Postdoc enquiry",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Ken Olum (also Soubhik Kumar, Mark Hertzberg)",
+"last": "Cold email drafted, hooked on his PTA likelihood-approximation work",
+"next": "Send",
+"note": ""
+},
+{
+"n": "Imperial College ICIC",
+"r": "Postdoc enquiry",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Andrew Jaffe",
+"last": "Cold email drafted",
+"next": "Send",
+"note": "Heavens' group also evaluated for fit."
+},
+{
+"n": "CEICO, Prague",
+"r": "Externally funded fellowship hosting (no call open)",
+"t": "Fellowship",
+"s": "Draft ready",
+"d": null,
+"c": "Costas Skordis (skordis@fzu.cz)",
+"last": "Cold email drafted using CEICO's standing invitation on external fellowships",
+"next": "Send",
+"note": ""
+},
+{
+"n": "GRAPPA Amsterdam",
+"r": "Postdoc / NWO or MSCA 2027 hosting",
+"t": "Academic",
+"s": "Planned",
+"d": null,
+"c": "Christoph Weniger",
+"last": "Context prepared; MSCA 2026 too imminent",
+"next": "Draft and send, framed on 2027 MSCA or NWO",
+"note": ""
+},
+{
+"n": "IBS CTPU-CGA, Daejeon",
+"r": "Senior-researcher rounds (start date open)",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Masahide Yamaguchi",
+"last": "Enquiry drafted; address not yet filled",
+"next": "Fill address, send ahead of the next round",
+"note": "Also on the Korea list: IBS CTPU-PTC (Kiwoon Choi / Sang Hui Im), KIAS Fellow rounds, Seong Chan Park (Yonsei), Jinn-Ouk Gong (Ewha), Hyun Min Lee (Chung-Ang), KASI–SNU/Yonsei joint postdocs."
+},
+{
+"n": "Sungkyunkwan University",
+"r": "NRF funding / Korea Research Fellowship hosting",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Ki-Young Choi",
+"last": "Enquiry drafted (hooked on his GWs-from-PBH-evaporation work); address not yet filled",
+"next": "Fill address, send",
+"note": ""
+},
+{
+"n": "University of Helsinki",
+"r": "Probabilistic ML postdoc (Acerbi group)",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Luigi Acerbi",
+"last": "Cover letter drafted",
+"next": "Decide whether to submit",
+"note": ""
+},
+{
+"n": "UNAM (ICF / ICN)",
+"r": "UNAM POSDOC ~Feb 2027 call · SECIHTI ~Jul 2027",
+"t": "Fellowship",
+"s": "Planned",
+"d": "2027-02-01",
+"c": "José Alberto Vázquez (javazquez@icf.unam.mx); Celia Escamilla-Rivera; Juan Carlos Hidalgo",
+"last": "Country evaluated; both 2026 national windows closed in August",
+"next": "Approach Vázquez ahead of the Feb 2027 POSDOC call (host entity submits; Sept 2027 start)",
+"note": "SECIHTI needs an apostilled, Spanish-translated doctorate. Deadline shown is approximate."
+},
+{
+"n": "US targets — outreach planned",
+"r": "Cold emails not yet drafted",
+"t": "Academic",
+"s": "Planned",
+"d": null,
+"c": "Kuver Sinha (Oklahoma); Yanou Cui (UC Riverside); Bhaskar Dutta (Texas A&M); Stephen Taylor / VIPER (Vanderbilt, NANOGrav-IPTA scholarship); Siemens & Hazboun (Oregon State)",
+"last": "Identified",
+"next": "Draft in priority order",
+"note": "Also: Qing-Guo Huang (ITP-CAS), Kejia Lee (KIAA/PKU)."
+},
+{
+"n": "Fellowship calendar",
+"r": "Structural routes to keep warm",
+"t": "Fellowship",
+"s": "Planned",
+"d": "2027-03-01",
+"c": "—",
+"last": "Assessed",
+"next": "Humboldt: aim at the March 2027 committee (verify Germany-residency eligibility from the 2025 DESY visit). MSCA-PF 2027: reuse CERN/Domcke materials; hosting ask to Konstandin drafted, not sent. JSPS Standard: April 2027 via KEK",
+"note": "Also flagged: NANOGrav PFC fellowship, NASA Postdoctoral Program, NASA Hubble/Einstein, ITC Harvard, KICP Chicago, Miller Berkeley."
+},
+{
+"n": "Purple Mountain Observatory",
+"r": "Cold inquiry",
+"t": "Academic",
+"s": "Waiting on reply",
+"d": null,
+"c": "—",
+"last": "Inquiry sent",
+"next": "Nudge if quiet",
+"note": ""
+},
+{
+"n": "Sungkyunkwan (SKKU) — Bayesian jet quenching",
+"r": "Postdoc",
+"t": "Academic",
+"s": "Submitted",
+"d": null,
+"c": "—",
+"last": "Applied",
+"next": "Wait",
+"note": ""
+},
+{
+"n": "USC — Oberai group",
+"r": "Postdoc",
+"t": "Academic",
+"s": "Submitted",
+"d": null,
+"c": "—",
+"last": "Applied",
+"next": "Wait",
+"note": ""
+},
+{
+"n": "CERN — MSCA-PF with Valerie Domcke",
+"r": "MSCA Postdoctoral Fellowship",
+"t": "Fellowship",
+"s": "Closed",
+"d": null,
+"c": "Valerie Domcke",
+"last": "25 Jun — rejected at pre-selection (resources/office space); warm signal from Domcke",
+"next": "Materials reusable for MSCA-PF 2027",
+"note": ""
+},
+{
+"n": "Weizmann Institute",
+"r": "Postdoc (Eilam Gross / Parnassus)",
+"t": "Academic",
+"s": "Closed",
+"d": null,
+"c": "Eilam Gross",
+"last": "Rejected",
+"next": "—",
+"note": ""
+},
+{
+"n": "MIT Kavli",
+"r": "Postdoc (Ore Gottlieb, GRMHD/collapsar)",
+"t": "Academic",
+"s": "Closed",
+"d": null,
+"c": "Ore Gottlieb",
+"last": "Deprioritized: no technical overlap, specialist pool, late start",
+"next": "—",
+"note": ""
+},
+{
+"n": "Gupta (group not recorded)",
+"r": "Postdoc enquiry",
+"t": "Academic",
+"s": "Closed",
+"d": null,
+"c": "Gupta",
+"last": "~20 Aug — declined, already has a funded postdoc",
+"next": "—",
+"note": ""
+},
+{
+"n": "CEOS GmbH, Heidelberg",
+"r": "Permanent physicist / applied mathematician, charged-particle optics",
+"t": "Industry",
+"s": "In progress",
+"d": null,
+"c": "Annette Dau (HR)",
+"last": "Applied after informal inquiry; sent CV, cover letter, MSc/BSc certificates",
+"next": "Second interviews in September 2026",
+"note": ""
+},
+{
+"n": "BlackRock Mumbai",
+"r": "AFE Quantitative Modeler, Portfolio Risk (R266236, priority) · RQA Model Validation (R266254)",
+"t": "Industry",
+"s": "In progress",
+"d": null,
+"c": "—",
+"last": "Risk-modelling CV tailored for AFE",
+"next": "Submit both",
+"note": ""
+},
+{
+"n": "Wells Fargo Bengaluru",
+"r": "Quantitative Analytics Specialist, causal-inference / AI-ML (R-573191)",
+"t": "Industry",
+"s": "In progress",
+"d": null,
+"c": "—",
+"last": "CV tailored (New Delhi address; no production causal-ML experience stated openly)",
+"next": "Submit via online form",
+"note": ""
+},
+{
+"n": "Dolat Capital, Mumbai",
+"r": "Quant Analyst, options market-making desk",
+"t": "Industry",
+"s": "In progress",
+"d": null,
+"c": "—",
+"last": "Options/volatility-slanted CV and cover email drafted",
+"next": "Submit",
+"note": ""
+},
+{
+"n": "Algorio, Tel Aviv",
+"r": "Quantitative Researcher (LinkedIn Easy Apply)",
+"t": "Industry",
+"s": "In progress",
+"d": null,
+"c": "—",
+"last": "Tel Aviv-slanted CV tailored",
+"next": "Apply",
+"note": "Leads on BankNifty strangle backtest, latent-liquidity stress model, SV inference pipeline."
+},
+{
+"n": "Voltanova, Bengaluru",
+"r": "Applied AI Researcher (PhD), Energy Intelligence",
+"t": "Industry",
+"s": "In progress",
+"d": null,
+"c": "—",
+"last": "Energy-slanted CV tailored (availability Jan 2027)",
+"next": "Apply",
+"note": ""
+},
+{
+"n": "Pravāh (SF / New Delhi)",
+"r": "'Pitch us a role' — probabilistic forecasting / state estimation",
+"t": "Industry",
+"s": "In progress",
+"d": null,
+"c": "—",
+"last": "Pitch angle chosen over the NWP data-scientist role",
+"next": "Send the pitch",
+"note": ""
+},
+{
+"n": "Aquis Search · Applied Materials · SIG",
+"r": "Junior QR/trader (recruiter) · Physics AI scientist, Bengaluru · Quant assessment",
+"t": "Industry",
+"s": "Waiting on reply",
+"d": null,
+"c": "—",
+"last": "In flight",
+"next": "Follow up",
+"note": ""
+},
+{
+"n": "JPMorgan ML-CoE",
+"r": "Quant ML (SVSSM project, Chak Wong)",
+"t": "Industry",
+"s": "Closed",
+"d": null,
+"c": "Chak Wong",
+"last": "Rejected — cited gaps in score correctness and HMC diagnostics",
+"next": "—",
+"note": ""
+},
+{
+"n": "Amunra Advisors, Mumbai · WindLens EPFL",
+"r": "Quant roles",
+"t": "Industry",
+"s": "Closed",
+"d": null,
+"c": "—",
+"last": "Amunra rejected after 90-min panel; WindLens take-home rejected on structural grounds",
+"next": "—",
+"note": ""
+},
+{
+"n": "NAOJ — Project Research Fellow FY2027",
+"r": "Topic 18, theoretical particle astrophysics/cosmology · 2 posts across 37 topics · start Apr–Sept 2027 · interviews 20 or 24 Nov",
+"t": "Academic",
+"s": "In progress",
+"d": "2026-10-02",
+"c": "Kazunori Kohri (host; kazunori.kohri@nao.ac.jp)",
+"last": "Kohri approved the revised multi-probe proposal — host consultation done; the institute-wide committee is the remaining gate",
+"next": "Submit the initial form early (noon JST, 2 Oct) — the referee upload link is only issued after it goes in",
+"note": "Program: one ΔN_eff budget in the (T_RH, w) plane tied to SKA-era PTA, KAGRA O5 and TSUKUYOMI 21 cm; H0 ladder reanalysis as the independent half. Materials must say explicitly how it relates to an NAOJ observational project — the committee is mostly observers. Kohri can't be a referee. He warned the pool is strong."
+},
+{
+"n": "EACOA Fellowship",
+"r": "Joint plan, hosts ASIAA (Kin-Wang Ng) + KASI (Parkinson)",
+"t": "Fellowship",
+"s": "Waiting on reply",
+"d": "2026-11-15",
+"c": "Kin-Wang Ng; David Parkinson",
+"last": "Ng encouraged an EACOA application; reply drafted asking him to be ASIAA host and endorse a plan built on the template-misspecification problem; Parkinson asked to endorse as second host",
+"next": "Send the reply to Ng; collect both endorsements",
+"note": "Deliberately KASI, not NAOJ/Kohri, as the second host."
+},
+{
+"n": "NCTS Taiwan",
+"r": "Postdoc (AJO #32554) · full consideration by 31 Dec",
+"t": "Academic",
+"s": "Planned",
+"d": "2026-12-31",
+"c": "Kin-Wang Ng (Academia Sinica ASIoP / ASIAA)",
+"last": "Ng recommended it after the cold email (led on the anisotropy template-misspecification result)",
+"next": "Apply via AJO; watch AJO for the ASIoP high-energy theory ad and ASIAA institute ads",
+"note": "Academia Sinica Postdoctoral Scholar Program is ruled out (reserved for group collaborators)."
+},
+{
+"n": "Ben-Gurion University",
+"r": "Postdoc on existing funding, ~Feb 2027 (Ely Kovetz, 21-cm / LIM)",
+"t": "Academic",
+"s": "Waiting on reply",
+"d": "2026-11-25",
+"c": "Ely Kovetz",
+"last": "Cold email sent 22 Sep; he offered an Astro Seminar — you accepted 25 Nov and asked about funding in writing",
+"next": "Wait on the funding answer; send the title and abstract you promised",
+"note": "Hook: whether a misspecified burstiness amplitude (Lazare et al. 2607.20651) leaves residual H(z) bias in the BAO–VAO correction of Cruz et al. 2607.09846. Date shown is the talk. Israel only if a PI can hire immediately on existing grants."
+},
+{
+"n": "IEM-CSIC Madrid — Juan de la Cierva",
+"r": "Juan de la Cierva postdoc, 2026 call",
+"t": "Fellowship",
+"s": "In progress",
+"d": null,
+"c": "Jesús Torrado (Cobaya)",
+"last": "Met at CosmoVerse Bilbao; he said he might host. Interview upcoming",
+"next": "Prepare for the interview; pitch a prototype Stan-style windowed mass-matrix adaptation for Cobaya",
+"note": "Add the interview date here once fixed."
+},
+{
+"n": "Bar-Ilan University",
+"r": "Postdoc enquiry, early 2027",
+"t": "Academic",
+"s": "Planned",
+"d": null,
+"c": "David Benisty",
+"last": "No postdoc funding now (applying for grants himself); happy to back a fellowship application",
+"next": "Decide whether to ask about short-term bridge support",
+"note": "Fellowship timelines likely too late, and Israel is immediate-grant-funding only."
+},
+{
+"n": "CosmoVerse contacts",
+"r": "Postdoc openings from Feb 2027",
+"t": "Academic",
+"s": "Draft ready",
+"d": null,
+"c": "Jackson; Eleonora",
+"last": "Email to Jackson drafted; Eleonora got a heads-up on the H0 ladder project at Bilbao",
+"next": "Send Jackson's email; email Eleonora about the H0 project, then ask about openings",
+"note": ""
+},
+{
+"n": "University of Luxembourg",
+"r": "Cosmological tests of Casimir self-interaction Λ",
+"t": "Academic",
+"s": "Closed",
+"d": null,
+"c": "Alexandre Tkatchenko",
+"last": "Declined — no funding for this project at the moment",
+"next": "—",
+"note": "Not pursuing MSCA 2027 hosting here."
+},
+{
+"n": "Google Israel",
+"r": "Full-time research/ML roles, Tel Aviv or Haifa",
+"t": "Industry",
+"s": "Waiting on reply",
+"d": null,
+"c": "Angus (recruiter)",
+"last": "Declined the 2027 PhD internship; asked for full-time roles (these do offer visa sponsorship)",
+"next": "Wait for him to point you to roles or pass on your CV",
+"note": ""
+}
+]
+</script>
+
+<script>
+(function(){
+  const STAGES=["In progress","Submitted","Waiting on reply","Draft ready","Planned","Closed"];
+  const STAGE_WHY={
+    "In progress":"Applications with a live deadline or an open thread you still have to act on.",
+    "Submitted":"Sent and acknowledged. Nothing to do but wait — and prepare for interviews.",
+    "Waiting on reply":"Your last move is in. Nudge if it goes quiet.",
+    "Draft ready":"Email or package written; not yet sent.",
+    "Planned":"Identified, nothing written yet.",
+    "Closed":"Rejected, withdrawn, or deprioritized."
+  };
+  const TRACKS=["All","Academic","Fellowship","Visit","Industry"];
+  const original=JSON.parse(document.getElementById('data').textContent);
+  let data=JSON.parse(JSON.stringify(original));
+  let track="All", stageF="All", q="";
+  const today=new Date(); today.setHours(0,0,0,0);
+  const fmt=d=>d?new Date(d+"T00:00:00").toLocaleDateString('en-GB',{day:'numeric',month:'short'}):"";
+  const days=d=>Math.round((new Date(d+"T00:00:00")-today)/86400000);
+
+  function lede(){
+    const live=data.filter(x=>x.s==="In progress").length;
+    const sub=data.filter(x=>x.s==="Submitted").length;
+    const wait=data.filter(x=>x.s==="Waiting on reply"||x.s==="Draft ready").length;
+    const nextD=data.filter(x=>x.d&&days(x.d)>=0&&x.s!=="Closed").sort((a,b)=>a.d.localeCompare(b.d))[0];
+    document.getElementById('lede').innerHTML=
+      `<strong>${live}</strong> in progress, <strong>${sub}</strong> submitted, <strong>${wait}</strong> threads waiting on you or on them.`+
+      (nextD?` Next date: <strong>${nextD.n}</strong> in ${days(nextD.d)} days.`:"")+" Updated 24 Sep 2026. You're in India 15 Oct – mid-Nov, which overlaps the ISTA and NAOJ interview weeks.";
+  }
+
+  function runway(){
+    const start=new Date(today); start.setDate(start.getDate()-14);
+    const end=new Date(today); end.setDate(end.getDate()+110);
+    const span=end-start;
+    const pos=d=>((new Date(d+"T00:00:00")-start)/span*100);
+    const items=data.filter(x=>x.d&&x.s!=="Closed").filter(x=>{const p=pos(x.d);return p>=0&&p<=100;}).sort((a,b)=>a.d.localeCompare(b.d));
+    const t=document.getElementById('track'); t.innerHTML="";
+    const tp=(today-start)/span*100;
+    t.insertAdjacentHTML('beforeend',`<div class="tick today" style="left:${tp}%"><div class="dot"></div><div class="lbl">Today</div></div>`);
+    // assign each label to the first lane where it won't overlap the previous one
+    const W=t.clientWidth||1000, lanes=[], LH=34, labW=150;
+    items.forEach(x=>{
+      const px=pos(x.d)/100*W; let L=0;
+      while(lanes[L]!==undefined && px-labW/2 < lanes[L]+8) L++;
+      lanes[L]=px+labW/2; x._lane=L; x._px=px;
+    });
+    const nL=Math.max(1,lanes.length);
+    t.style.height=(nL*LH+24)+"px";
+    t.querySelector('.today .dot').style.height=(nL*LH+24)+"px";
+    items.forEach(x=>{
+      const n=days(x.d); const cls=n<0?"past":n<=21?"soon":"";
+      const short=x.n.replace(/ —.*$/,"").replace(/,.*$/,"").replace(/^University of /,"");
+      const align=x._px<labW/2?"left:0;transform:none":x._px>W-labW/2?"left:auto;right:0;transform:none":"";
+      t.insertAdjacentHTML('beforeend',`<div class="tick ${cls}" style="left:${pos(x.d)}%"><div class="dot"></div><div class="lbl" style="bottom:${16+x._lane*LH}px;${align}"><b>${short}</b><span>${fmt(x.d)}${n<0?" · passed":" · "+n+"d"}</span></div></div>`);
+    });
+    const m=document.getElementById('months'); m.innerHTML="";
+    const cur=new Date(start.getFullYear(),start.getMonth(),1);
+    while(cur<=end){ m.insertAdjacentHTML('beforeend',`<span>${cur.toLocaleDateString('en-GB',{month:'short'})}</span>`); cur.setMonth(cur.getMonth()+1);}
+  }
+
+  function chips(id,list,cur,on){
+    const el=document.getElementById(id); el.innerHTML="";
+    list.forEach(v=>{const b=document.createElement('button');b.className='chip';b.textContent=v;b.setAttribute('aria-pressed',v===cur);b.onclick=()=>{on(v);render();};el.appendChild(b);});
+  }
+
+  function render(){
+    chips('trackChips',TRACKS,track,v=>track=v);
+    chips('stageChips',["All",...STAGES],stageF,v=>stageF=v);
+    const main=document.getElementById('main'); main.innerHTML="";
+    const ql=q.trim().toLowerCase();
+    const vis=data.filter(x=>(track==="All"||x.t===track)&&(stageF==="All"||x.s===stageF)&&(!ql||(x.n+" "+x.r+" "+x.c+" "+x.note+" "+x.last+" "+x.next).toLowerCase().includes(ql)));
+    document.getElementById('count').textContent=`${vis.length} of ${data.length}`;
+    if(!vis.length){main.innerHTML='<p class="empty">Nothing matches. Clear the search or pick another chip.</p>';return;}
+    STAGES.forEach(st=>{
+      const rows=vis.filter(x=>x.s===st).sort((a,b)=>(a.d||"9999").localeCompare(b.d||"9999"));
+      if(!rows.length)return;
+      const g=document.createElement('section');g.className='group';
+      g.innerHTML=`<h2>${st}<small>${rows.length}</small></h2><p class="why">${STAGE_WHY[st]}</p>`;
+      rows.forEach(x=>{
+        const i=data.indexOf(x);
+        const n=x.d?days(x.d):null;
+        const dueCls=n===null?"":n<0?"past":n<=21?"soon":"";
+        const dueTxt=x.d?`<b>${fmt(x.d)}</b>${n<0?"passed":n===0?"today":n+" days"}`:"<b>—</b>no fixed date";
+        const det=document.createElement('details');det.className='row';
+        det.innerHTML=`<summary>
+            <div class="name-cell"><span class="name">${x.n}</span><span class="role">${x.r}</span></div>
+            <div class="stage-cell"><span class="stage" data-s="${x.s}">${x.s}</span></div>
+            <div class="next">${x.next}</div>
+            <div class="due ${dueCls}">${dueTxt}</div>
+          </summary>
+          <dl class="body">
+            <div><dt>Contact</dt><dd>${x.c}</dd></div>
+            <div><dt>Where it stands</dt><dd>${x.last}</dd></div>
+            ${x.note?`<div class="wide"><dt>Notes</dt><dd class="hook">${x.note}</dd></div>`:""}
+            <div><dt>Change stage</dt><dd><select data-i="${i}">${STAGES.map(s=>`<option ${s===x.s?"selected":""}>${s}</option>`).join("")}</select></dd></div>
+            <div><dt>Next action (edit)</dt><dd><textarea data-i="${i}">${x.next}</textarea></dd></div>
+          </dl>`;
+        g.appendChild(det);
+      });
+      main.appendChild(g);
+    });
+    main.querySelectorAll('select').forEach(s=>s.onchange=e=>{data[+e.target.dataset.i].s=e.target.value;lede();runway();render();});
+    main.querySelectorAll('textarea').forEach(t=>t.onchange=e=>{data[+e.target.dataset.i].next=e.target.value;});
+    lede();
+  }
+
+  document.getElementById('q').oninput=e=>{q=e.target.value;render();};
+  document.getElementById('reset').onclick=()=>{data=JSON.parse(JSON.stringify(original));runway();render();};
+  document.getElementById('dl').onclick=()=>{
+    const json=JSON.stringify(data,null,0).replace(/<\//g,'<\\/');
+    let html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+    html=html.replace(/(<script id="data" type="application\/json">)[\s\S]*?(<\/script>)/,(m,a,b)=>a+"\n"+json+"\n"+b);
+    const blob=new Blob([html],{type:'text/html'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='postdoc-tracker-'+new Date().toISOString().slice(0,10)+'.html';a.click();
+  };
+  runway(); render();
+})();
+</script>
+</body>
+</html>
